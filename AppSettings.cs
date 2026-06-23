@@ -14,6 +14,7 @@ public sealed class AppSettings
 
     public string Theme { get; set; } = ThemePalette.Normal;
     public string WindowMode { get; set; } = "Desktop";
+    public string Language { get; set; } = "zh-TW";
     public bool StartWithWindows { get; set; }
     public double? Left { get; set; }
     public double? Top { get; set; }

@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -19,10 +20,102 @@ public partial class MainWindow : Window
 {
     private const string DesktopWindowMode = "Desktop";
     private const string TopmostWindowMode = "Topmost";
+    private const string DefaultLanguage = "zh-TW";
     private static readonly IntPtr HwndBottom = new(1);
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoActivate = 0x0010;
+    private static readonly LanguageOption[] LanguageOptions =
+    {
+        new("zh-TW", "繁體中文"),
+        new("en", "English"),
+        new("ja", "日本語")
+    };
+
+    private static readonly Dictionary<string, Dictionary<string, string>> Texts = new()
+    {
+        ["zh-TW"] = new Dictionary<string, string>
+        {
+            ["AppTitle"] = "專案捷徑",
+            ["Subtitle"] = "將專案資料夾拖放到這裡",
+            ["Settings"] = "設定",
+            ["HideToTray"] = "隱藏到系統匣",
+            ["Style"] = "樣式",
+            ["WindowMode"] = "視窗模式",
+            ["Language"] = "語系",
+            ["StartWithWindows"] = "隨 Windows 啟動",
+            ["Show"] = "顯示",
+            ["Hide"] = "隱藏",
+            ["Exit"] = "結束",
+            ["Open"] = "開啟",
+            ["OpenParent"] = "開啟上層資料夾",
+            ["CopyPath"] = "複製路徑",
+            ["OpenTerminal"] = "在終端機中開啟",
+            ["OpenCodex"] = "用 Codex 開啟",
+            ["OpenClaude"] = "用 Claude 開啟",
+            ["OpenAgy"] = "用 Antigravity 開啟",
+            ["ChangeIcon"] = "變更圖示...",
+            ["ResetIcon"] = "重設圖示",
+            ["RemoveShortcut"] = "移除捷徑",
+            ["FolderMissing"] = "這個資料夾已不存在。",
+            ["ChooseIcon"] = "選擇圖示",
+            ["IconFilter"] = "圖示或圖片檔案|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|所有檔案|*.*"
+        },
+        ["en"] = new Dictionary<string, string>
+        {
+            ["AppTitle"] = "Project Shortcuts",
+            ["Subtitle"] = "Drop project folders here",
+            ["Settings"] = "Settings",
+            ["HideToTray"] = "Hide to tray",
+            ["Style"] = "Style",
+            ["WindowMode"] = "Window mode",
+            ["Language"] = "Language",
+            ["StartWithWindows"] = "Start with Windows",
+            ["Show"] = "Show",
+            ["Hide"] = "Hide",
+            ["Exit"] = "Exit",
+            ["Open"] = "Open",
+            ["OpenParent"] = "Open parent folder",
+            ["CopyPath"] = "Copy path",
+            ["OpenTerminal"] = "Open in Terminal",
+            ["OpenCodex"] = "Open with Codex",
+            ["OpenClaude"] = "Open with Claude",
+            ["OpenAgy"] = "Open with Antigravity",
+            ["ChangeIcon"] = "Change icon...",
+            ["ResetIcon"] = "Reset icon",
+            ["RemoveShortcut"] = "Remove shortcut",
+            ["FolderMissing"] = "This folder no longer exists.",
+            ["ChooseIcon"] = "Choose icon",
+            ["IconFilter"] = "Icon or image files|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|All files|*.*"
+        },
+        ["ja"] = new Dictionary<string, string>
+        {
+            ["AppTitle"] = "プロジェクトショートカット",
+            ["Subtitle"] = "プロジェクトフォルダーをここにドロップ",
+            ["Settings"] = "設定",
+            ["HideToTray"] = "トレイに隠す",
+            ["Style"] = "スタイル",
+            ["WindowMode"] = "ウィンドウモード",
+            ["Language"] = "言語",
+            ["StartWithWindows"] = "Windows 起動時に開始",
+            ["Show"] = "表示",
+            ["Hide"] = "非表示",
+            ["Exit"] = "終了",
+            ["Open"] = "開く",
+            ["OpenParent"] = "親フォルダーを開く",
+            ["CopyPath"] = "パスをコピー",
+            ["OpenTerminal"] = "ターミナルで開く",
+            ["OpenCodex"] = "Codex で開く",
+            ["OpenClaude"] = "Claude で開く",
+            ["OpenAgy"] = "Antigravity で開く",
+            ["ChangeIcon"] = "アイコンを変更...",
+            ["ResetIcon"] = "アイコンをリセット",
+            ["RemoveShortcut"] = "ショートカットを削除",
+            ["FolderMissing"] = "このフォルダーは存在しません。",
+            ["ChooseIcon"] = "アイコンを選択",
+            ["IconFilter"] = "アイコンまたは画像ファイル|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|すべてのファイル|*.*"
+        }
+    };
 
     private readonly AppSettings _settings;
     private readonly Forms.NotifyIcon _trayIcon;
@@ -37,10 +130,12 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = AppSettings.Load();
+        _settings.Language = NormalizeLanguage(_settings.Language);
         DataContext = this;
         ShortcutList.ContextMenu = CreateShortcutContextMenu();
 
         ConfigureSettingsControls();
+        ApplyLanguage();
         LoadShortcuts();
         ApplySavedWindowPosition();
         ApplyTheme(_settings.Theme);
@@ -57,6 +152,10 @@ public partial class MainWindow : Window
         ThemeBox.SelectedItem = _settings.Theme;
         WindowModeBox.ItemsSource = new[] { DesktopWindowMode, TopmostWindowMode };
         WindowModeBox.SelectedItem = NormalizeWindowMode(_settings.WindowMode);
+        LanguageBox.ItemsSource = LanguageOptions;
+        LanguageBox.DisplayMemberPath = nameof(LanguageOption.DisplayName);
+        LanguageBox.SelectedValuePath = nameof(LanguageOption.Code);
+        LanguageBox.SelectedValue = _settings.Language;
         StartWithWindowsBox.IsChecked = _settings.StartWithWindows;
     }
 
@@ -71,18 +170,12 @@ public partial class MainWindow : Window
 
     private Forms.NotifyIcon CreateTrayIcon()
     {
-        var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Show", null, (_, _) => ShowFromTray());
-        menu.Items.Add("Hide", null, (_, _) => Hide());
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => ExitApplication());
-
         var icon = new Forms.NotifyIcon
         {
             Icon = System.Drawing.SystemIcons.Application,
-            Text = "Project Shortcuts",
+            Text = T("AppTitle"),
             Visible = true,
-            ContextMenuStrip = menu
+            ContextMenuStrip = CreateTrayContextMenu()
         };
         icon.DoubleClick += (_, _) => ShowFromTray();
         return icon;
@@ -91,14 +184,19 @@ public partial class MainWindow : Window
     private ContextMenu CreateShortcutContextMenu()
     {
         var menu = new ContextMenu();
-        menu.Items.Add(CreateMenuItem("Open", OpenMenuItem_Click));
-        menu.Items.Add(CreateMenuItem("Open parent folder", OpenParentMenuItem_Click));
-        menu.Items.Add(CreateMenuItem("Copy path", CopyPathMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("Open"), OpenMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenParent"), OpenParentMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("CopyPath"), CopyPathMenuItem_Click));
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem("Change icon...", ChangeIconMenuItem_Click));
-        menu.Items.Add(CreateMenuItem("Reset icon", ResetIconMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenTerminal"), OpenTerminalMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenCodex"), OpenCodexMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenClaude"), OpenClaudeMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenAgy"), OpenAgyMenuItem_Click));
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem("Remove shortcut", RemoveMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("ChangeIcon"), ChangeIconMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("ResetIcon"), ResetIconMenuItem_Click));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(CreateMenuItem(T("RemoveShortcut"), RemoveMenuItem_Click));
         return menu;
     }
 
@@ -154,11 +252,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private static void OpenFolder(string path)
+    private void OpenFolder(string path)
     {
         if (!Directory.Exists(path))
         {
-            MessageBox.Show("This folder no longer exists.", "Project Shortcuts", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(T("FolderMissing"), T("AppTitle"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -179,6 +277,7 @@ public partial class MainWindow : Window
         _settings.Shortcuts = Shortcuts.ToList();
         _settings.Theme = ThemeBox.SelectedItem?.ToString() ?? _settings.Theme;
         _settings.WindowMode = WindowModeBox.SelectedItem?.ToString() ?? _settings.WindowMode;
+        _settings.Language = NormalizeLanguage(LanguageBox.SelectedValue?.ToString() ?? _settings.Language);
         _settings.StartWithWindows = StartWithWindowsBox.IsChecked == true;
         _settings.Left = Left;
         _settings.Top = Top;
@@ -235,6 +334,50 @@ public partial class MainWindow : Window
         return string.Equals(mode, TopmostWindowMode, StringComparison.OrdinalIgnoreCase)
             ? TopmostWindowMode
             : DesktopWindowMode;
+    }
+
+    private static string NormalizeLanguage(string? language)
+    {
+        return LanguageOptions.Any(x => string.Equals(x.Code, language, StringComparison.OrdinalIgnoreCase))
+            ? language!
+            : DefaultLanguage;
+    }
+
+    private string T(string key)
+    {
+        var language = NormalizeLanguage(_settings.Language);
+        return Texts[language].TryGetValue(key, out var text) ? text : Texts[DefaultLanguage][key];
+    }
+
+    private void ApplyLanguage()
+    {
+        Title = T("AppTitle");
+        TitleText.Text = T("AppTitle");
+        SubtitleText.Text = T("Subtitle");
+        SettingsButton.ToolTip = T("Settings");
+        HideButton.ToolTip = T("HideToTray");
+        StyleLabel.Text = T("Style");
+        WindowModeLabel.Text = T("WindowMode");
+        LanguageLabel.Text = T("Language");
+        StartWithWindowsBox.Content = T("StartWithWindows");
+        ShortcutList.ContextMenu = CreateShortcutContextMenu();
+
+        if (_trayIcon is not null)
+        {
+            _trayIcon.ContextMenuStrip?.Dispose();
+            _trayIcon.ContextMenuStrip = CreateTrayContextMenu();
+            _trayIcon.Text = T("AppTitle");
+        }
+    }
+
+    private Forms.ContextMenuStrip CreateTrayContextMenu()
+    {
+        var menu = new Forms.ContextMenuStrip();
+        menu.Items.Add(T("Show"), null, (_, _) => ShowFromTray());
+        menu.Items.Add(T("Hide"), null, (_, _) => Hide());
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add(T("Exit"), null, (_, _) => ExitApplication());
+        return menu;
     }
 
     private void ApplyTheme(string themeName)
@@ -441,6 +584,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void LanguageBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        _settings.Language = NormalizeLanguage(LanguageBox.SelectedValue?.ToString());
+        ApplyLanguage();
+        SaveSettings();
+    }
+
     private void StartWithWindowsBox_Changed(object sender, RoutedEventArgs e)
     {
         if (_isLoading)
@@ -482,6 +637,72 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OpenTerminalMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemFromSender(sender) is ShortcutItem item)
+        {
+            OpenTerminal(item.Path);
+        }
+    }
+
+    private void OpenCodexMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemFromSender(sender) is ShortcutItem item)
+        {
+            OpenTerminal(item.Path, "codex");
+        }
+    }
+
+    private void OpenClaudeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemFromSender(sender) is ShortcutItem item)
+        {
+            OpenTerminal(item.Path, "CLAUDE");
+        }
+    }
+
+    private void OpenAgyMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemFromSender(sender) is ShortcutItem item)
+        {
+            OpenTerminal(item.Path, "agy");
+        }
+    }
+
+    private void OpenTerminal(string path, string? command = null)
+    {
+        if (!Directory.Exists(path))
+        {
+            MessageBox.Show(T("FolderMissing"), T("AppTitle"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            var wtArguments = string.IsNullOrWhiteSpace(command)
+                ? $"-d \"{path}\""
+                : $"-d \"{path}\" cmd /k {command}";
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "wt.exe",
+                Arguments = wtArguments,
+                UseShellExecute = false
+            });
+        }
+        catch
+        {
+            var cmdArguments = string.IsNullOrWhiteSpace(command)
+                ? $"/k cd /d \"{path}\""
+                : $"/k cd /d \"{path}\" && {command}";
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = cmdArguments,
+                UseShellExecute = false
+            });
+        }
+    }
+
     private void ChangeIconMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (ItemFromSender(sender) is not ShortcutItem item)
@@ -491,8 +712,8 @@ public partial class MainWindow : Window
 
         var dialog = new OpenFileDialog
         {
-            Title = "Choose icon",
-            Filter = "Icon or image files|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|All files|*.*",
+            Title = T("ChooseIcon"),
+            Filter = T("IconFilter"),
             CheckFileExists = true
         };
         if (dialog.ShowDialog(this) == true)
@@ -531,4 +752,6 @@ public partial class MainWindow : Window
         int cx,
         int cy,
         uint uFlags);
+
+    private sealed record LanguageOption(string Code, string DisplayName);
 }
