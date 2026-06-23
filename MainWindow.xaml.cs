@@ -184,13 +184,21 @@ public partial class MainWindow : Window
     {
         var icon = new Forms.NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Text = T("AppTitle"),
             Visible = true,
             ContextMenuStrip = CreateTrayContextMenu()
         };
         icon.DoubleClick += (_, _) => ShowFromTray();
         return icon;
+    }
+
+    private static System.Drawing.Icon LoadTrayIcon()
+    {
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "image", "project-shortcut-dock.ico");
+        return File.Exists(iconPath)
+            ? new System.Drawing.Icon(iconPath)
+            : System.Drawing.SystemIcons.Application;
     }
 
     private ContextMenu CreateShortcutContextMenu()
