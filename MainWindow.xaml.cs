@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 
 namespace ProjectShortcutDock;
@@ -20,7 +21,8 @@ public partial class MainWindow : Window
 {
     private const string DesktopWindowMode = "Desktop";
     private const string TopmostWindowMode = "Topmost";
-    private const string DefaultLanguage = "zh-TW";
+    private const string DefaultLanguage = "en";
+    private const string DefaultTerminalShell = "cmd";
     private static readonly IntPtr HwndBottom = new(1);
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoMove = 0x0002;
@@ -43,6 +45,7 @@ public partial class MainWindow : Window
             ["Style"] = "樣式",
             ["WindowMode"] = "視窗模式",
             ["Language"] = "語系",
+            ["TerminalShell"] = "Shell",
             ["StartWithWindows"] = "隨 Windows 啟動",
             ["Show"] = "顯示",
             ["Hide"] = "隱藏",
@@ -70,6 +73,7 @@ public partial class MainWindow : Window
             ["Style"] = "Style",
             ["WindowMode"] = "Window mode",
             ["Language"] = "Language",
+            ["TerminalShell"] = "Shell",
             ["StartWithWindows"] = "Start with Windows",
             ["Show"] = "Show",
             ["Hide"] = "Hide",
@@ -97,6 +101,7 @@ public partial class MainWindow : Window
             ["Style"] = "スタイル",
             ["WindowMode"] = "ウィンドウモード",
             ["Language"] = "言語",
+            ["TerminalShell"] = "Shell",
             ["StartWithWindows"] = "Windows 起動時に開始",
             ["Show"] = "表示",
             ["Hide"] = "非表示",
@@ -119,6 +124,7 @@ public partial class MainWindow : Window
 
     private readonly AppSettings _settings;
     private readonly Forms.NotifyIcon _trayIcon;
+    private readonly List<ShellOption> _terminalShellOptions = new();
     private bool _allowClose;
     private bool _isLoading = true;
     private IntPtr _windowHandle;
@@ -131,6 +137,8 @@ public partial class MainWindow : Window
 
         _settings = AppSettings.Load();
         _settings.Language = NormalizeLanguage(_settings.Language);
+        _terminalShellOptions = DetectTerminalShellOptions();
+        _settings.TerminalShell = NormalizeTerminalShell(_settings.TerminalShell);
         DataContext = this;
         ShortcutList.ContextMenu = CreateShortcutContextMenu();
 
@@ -156,6 +164,10 @@ public partial class MainWindow : Window
         LanguageBox.DisplayMemberPath = nameof(LanguageOption.DisplayName);
         LanguageBox.SelectedValuePath = nameof(LanguageOption.Code);
         LanguageBox.SelectedValue = _settings.Language;
+        TerminalShellBox.ItemsSource = _terminalShellOptions;
+        TerminalShellBox.DisplayMemberPath = nameof(ShellOption.DisplayName);
+        TerminalShellBox.SelectedValuePath = nameof(ShellOption.Code);
+        TerminalShellBox.SelectedValue = _settings.TerminalShell;
         StartWithWindowsBox.IsChecked = _settings.StartWithWindows;
     }
 
@@ -184,27 +196,62 @@ public partial class MainWindow : Window
     private ContextMenu CreateShortcutContextMenu()
     {
         var menu = new ContextMenu();
-        menu.Items.Add(CreateMenuItem(T("Open"), OpenMenuItem_Click));
-        menu.Items.Add(CreateMenuItem(T("OpenParent"), OpenParentMenuItem_Click));
-        menu.Items.Add(CreateMenuItem(T("CopyPath"), CopyPathMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("Open"), "\uE8E5", OpenMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenParent"), "\uE838", OpenParentMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("CopyPath"), "\uE8C8", CopyPathMenuItem_Click));
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem(T("OpenTerminal"), OpenTerminalMenuItem_Click));
-        menu.Items.Add(CreateMenuItem(T("OpenCodex"), OpenCodexMenuItem_Click));
-        menu.Items.Add(CreateMenuItem(T("OpenClaude"), OpenClaudeMenuItem_Click));
-        menu.Items.Add(CreateMenuItem(T("OpenAgy"), OpenAgyMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenTerminal"), "\uE756", OpenTerminalMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenCodex"), LoadMenuIcon("codex.ico"), OpenCodexMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenClaude"), LoadMenuIcon("claude.ico"), OpenClaudeMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("OpenAgy"), LoadMenuIcon("agy.ico"), OpenAgyMenuItem_Click));
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem(T("ChangeIcon"), ChangeIconMenuItem_Click));
-        menu.Items.Add(CreateMenuItem(T("ResetIcon"), ResetIconMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("ChangeIcon"), "\uE8B9", ChangeIconMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("ResetIcon"), "\uE72C", ResetIconMenuItem_Click));
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem(T("RemoveShortcut"), RemoveMenuItem_Click));
+        menu.Items.Add(CreateMenuItem(T("RemoveShortcut"), "\uE74D", RemoveMenuItem_Click));
         return menu;
     }
 
-    private static MenuItem CreateMenuItem(string header, RoutedEventHandler clickHandler)
+    private static MenuItem CreateMenuItem(string header, object? icon, RoutedEventHandler clickHandler)
     {
-        var item = new MenuItem { Header = header };
+        var item = new MenuItem
+        {
+            Header = header,
+            Icon = icon is string glyph ? CreateMenuIcon(glyph) : icon
+        };
         item.Click += clickHandler;
         return item;
+    }
+
+    private static TextBlock CreateMenuIcon(string glyph)
+    {
+        return new TextBlock
+        {
+            Text = glyph,
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 15,
+            Width = 18,
+            Height = 18,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+    }
+
+    private static Image LoadMenuIcon(string fileName)
+    {
+        var image = new Image
+        {
+            Width = 18,
+            Height = 18,
+            Stretch = Stretch.Uniform
+        };
+        var path = Path.Combine(AppContext.BaseDirectory, "image", fileName);
+        if (File.Exists(path))
+        {
+            image.Source = new BitmapImage(new Uri(path, UriKind.Absolute));
+        }
+
+        return image;
     }
 
     private void AddFolders(string[] paths)
@@ -278,6 +325,7 @@ public partial class MainWindow : Window
         _settings.Theme = ThemeBox.SelectedItem?.ToString() ?? _settings.Theme;
         _settings.WindowMode = WindowModeBox.SelectedItem?.ToString() ?? _settings.WindowMode;
         _settings.Language = NormalizeLanguage(LanguageBox.SelectedValue?.ToString() ?? _settings.Language);
+        _settings.TerminalShell = NormalizeTerminalShell(TerminalShellBox.SelectedValue?.ToString() ?? _settings.TerminalShell);
         _settings.StartWithWindows = StartWithWindowsBox.IsChecked == true;
         _settings.Left = Left;
         _settings.Top = Top;
@@ -343,6 +391,13 @@ public partial class MainWindow : Window
             : DefaultLanguage;
     }
 
+    private string NormalizeTerminalShell(string? shell)
+    {
+        return _terminalShellOptions.Any(x => string.Equals(x.Code, shell, StringComparison.OrdinalIgnoreCase))
+            ? shell!
+            : DefaultTerminalShell;
+    }
+
     private string T(string key)
     {
         var language = NormalizeLanguage(_settings.Language);
@@ -359,6 +414,7 @@ public partial class MainWindow : Window
         StyleLabel.Text = T("Style");
         WindowModeLabel.Text = T("WindowMode");
         LanguageLabel.Text = T("Language");
+        TerminalShellLabel.Text = T("TerminalShell");
         StartWithWindowsBox.Content = T("StartWithWindows");
         ShortcutList.ContextMenu = CreateShortcutContextMenu();
 
@@ -596,6 +652,17 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
+    private void TerminalShellBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        _settings.TerminalShell = NormalizeTerminalShell(TerminalShellBox.SelectedValue?.ToString());
+        SaveSettings();
+    }
+
     private void StartWithWindowsBox_Changed(object sender, RoutedEventArgs e)
     {
         if (_isLoading)
@@ -677,30 +744,75 @@ public partial class MainWindow : Window
             return;
         }
 
-        try
+        var shell = _terminalShellOptions.FirstOrDefault(x => x.Code == NormalizeTerminalShell(_settings.TerminalShell))
+            ?? _terminalShellOptions.First(x => x.Code == DefaultTerminalShell);
+        var startInfo = CreateTerminalStartInfo(shell, path, command);
+        Process.Start(startInfo);
+    }
+
+    private static ProcessStartInfo CreateTerminalStartInfo(ShellOption shell, string path, string? command)
+    {
+        return shell.Code switch
         {
-            var wtArguments = string.IsNullOrWhiteSpace(command)
-                ? $"-d \"{path}\""
-                : $"-d \"{path}\" cmd /k {command}";
-            Process.Start(new ProcessStartInfo
+            "pwsh" or "powershell" => new ProcessStartInfo
             {
-                FileName = "wt.exe",
-                Arguments = wtArguments,
+                FileName = shell.ExecutablePath,
+                Arguments = BuildPowerShellArguments(path, command),
                 UseShellExecute = false
-            });
-        }
-        catch
+            },
+            "git-bash" => new ProcessStartInfo
+            {
+                FileName = shell.ExecutablePath,
+                Arguments = BuildGitBashArguments(path, command),
+                UseShellExecute = false
+            },
+            "wsl" => new ProcessStartInfo
+            {
+                FileName = shell.ExecutablePath,
+                Arguments = BuildWslArguments(path, command),
+                UseShellExecute = false
+            },
+            _ => new ProcessStartInfo
+            {
+                FileName = shell.ExecutablePath,
+                Arguments = BuildCmdArguments(path, command),
+                UseShellExecute = false
+            }
+        };
+    }
+
+    private static string BuildCmdArguments(string path, string? command)
+    {
+        return string.IsNullOrWhiteSpace(command)
+            ? $"/k cd /d \"{path}\""
+            : $"/k cd /d \"{path}\" && {command}";
+    }
+
+    private static string BuildPowerShellArguments(string path, string? command)
+    {
+        var escapedPath = path.Replace("'", "''");
+        return string.IsNullOrWhiteSpace(command)
+            ? $"-NoExit -Command \"Set-Location -LiteralPath '{escapedPath}'\""
+            : $"-NoExit -Command \"Set-Location -LiteralPath '{escapedPath}'; {command}\"";
+    }
+
+    private static string BuildGitBashArguments(string path, string? command)
+    {
+        var bashPath = path.Replace('\\', '/').Replace("\"", "\\\"");
+        var bashCommand = string.IsNullOrWhiteSpace(command)
+            ? $"cd \"{bashPath}\"; exec bash"
+            : $"cd \"{bashPath}\" && {command}; exec bash";
+        return $"--login -i -c \"{bashCommand.Replace("\"", "\\\"")}\"";
+    }
+
+    private static string BuildWslArguments(string path, string? command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
         {
-            var cmdArguments = string.IsNullOrWhiteSpace(command)
-                ? $"/k cd /d \"{path}\""
-                : $"/k cd /d \"{path}\" && {command}";
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = cmdArguments,
-                UseShellExecute = false
-            });
+            return $"--cd \"{path}\"";
         }
+
+        return $"--cd \"{path}\" --exec bash -lc \"{command}; exec bash\"";
     }
 
     private void ChangeIconMenuItem_Click(object sender, RoutedEventArgs e)
@@ -743,6 +855,75 @@ public partial class MainWindow : Window
         }
     }
 
+    private static List<ShellOption> DetectTerminalShellOptions()
+    {
+        var options = new List<ShellOption>
+        {
+            new(DefaultTerminalShell, "cmd.exe", "cmd.exe")
+        };
+
+        if (FindExecutable("powershell.exe") is string windowsPowerShell)
+        {
+            options.Add(new("powershell", "Windows PowerShell", windowsPowerShell));
+        }
+
+        if (FindExecutable("pwsh.exe") is string powerShell7)
+        {
+            options.Add(new("pwsh", "PowerShell 7", powerShell7));
+        }
+
+        if (FindGitBash() is string gitBash)
+        {
+            options.Add(new("git-bash", "Git Bash", gitBash));
+        }
+
+        if (FindExecutable("wsl.exe") is string wsl)
+        {
+            options.Add(new("wsl", "WSL", wsl));
+        }
+
+        return options;
+    }
+
+    private static string? FindGitBash()
+    {
+        var candidates = new[]
+        {
+            @"C:\Program Files\Git\bin\bash.exe",
+            @"C:\Program Files (x86)\Git\bin\bash.exe"
+        };
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    private static string? FindExecutable(string fileName)
+    {
+        if (File.Exists(fileName))
+        {
+            return fileName;
+        }
+
+        var paths = (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var path in paths)
+        {
+            try
+            {
+                var candidate = Path.Combine(path.Trim(), fileName);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+            catch
+            {
+                // Ignore malformed PATH entries.
+            }
+        }
+
+        return null;
+    }
+
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(
         IntPtr hWnd,
@@ -754,4 +935,6 @@ public partial class MainWindow : Window
         uint uFlags);
 
     private sealed record LanguageOption(string Code, string DisplayName);
+
+    private sealed record ShellOption(string Code, string DisplayName, string ExecutablePath);
 }

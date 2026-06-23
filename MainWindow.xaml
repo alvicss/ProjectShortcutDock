@@ -98,6 +98,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -138,8 +139,20 @@
                               Margin="0,8,0,0"
                               SelectionChanged="LanguageBox_SelectionChanged" />
 
-                    <CheckBox x:Name="StartWithWindowsBox"
+                    <TextBlock x:Name="TerminalShellLabel"
+                               Grid.Row="3"
+                               Margin="0,8,0,0"
+                               VerticalAlignment="Center"
+                               Text="Shell"
+                               Foreground="{DynamicResource TextBrush}" />
+                    <ComboBox x:Name="TerminalShellBox"
                               Grid.Row="3"
+                              Grid.Column="1"
+                              Margin="0,8,0,0"
+                              SelectionChanged="TerminalShellBox_SelectionChanged" />
+
+                    <CheckBox x:Name="StartWithWindowsBox"
+                              Grid.Row="4"
                               Grid.ColumnSpan="2"
                               Margin="0,10,0,0"
                               Content="Start with Windows"

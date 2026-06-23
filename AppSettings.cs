@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 
@@ -13,8 +14,9 @@ public sealed class AppSettings
     };
 
     public string Theme { get; set; } = ThemePalette.Normal;
-    public string WindowMode { get; set; } = "Desktop";
-    public string Language { get; set; } = "zh-TW";
+    public string WindowMode { get; set; } = "Topmost";
+    public string Language { get; set; } = "en";
+    public string TerminalShell { get; set; } = "cmd";
     public bool StartWithWindows { get; set; }
     public double? Left { get; set; }
     public double? Top { get; set; }
@@ -33,16 +35,42 @@ public sealed class AppSettings
         {
             if (!File.Exists(FilePath))
             {
-                return new AppSettings();
+                return CreateFirstRunDefaults();
             }
 
             var json = File.ReadAllText(FilePath);
-            return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? CreateFirstRunDefaults();
         }
         catch
         {
-            return new AppSettings();
+            return CreateFirstRunDefaults();
         }
+    }
+
+    private static AppSettings CreateFirstRunDefaults()
+    {
+        return new AppSettings
+        {
+            Theme = ThemePalette.Normal,
+            WindowMode = "Topmost",
+            Language = DetectDefaultLanguage()
+        };
+    }
+
+    private static string DetectDefaultLanguage()
+    {
+        var cultureName = CultureInfo.CurrentUICulture.Name;
+        if (cultureName.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+        {
+            return "zh-TW";
+        }
+
+        if (cultureName.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ja";
+        }
+
+        return "en";
     }
 
     public void Save()
