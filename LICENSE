@@ -1,21 +1,63 @@
-MIT License
+Project Shortcut Dock Personal and Non-Commercial License
 
 Copyright (c) 2026 AJ
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license applies to Project Shortcut Dock, including its source code,
+compiled binaries, documentation, icons, scripts, and related files.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Permission
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You may use, copy, download, and share this software for personal,
+educational, learning, testing, and other non-commercial purposes.
+
+You may modify the source code for personal learning or non-commercial use.
+
+2. Non-Commercial Restriction
+
+You may not use this software, modified versions of this software, or any
+substantial portion of this software for commercial purposes without prior
+written permission from the author.
+
+Commercial purposes include, but are not limited to:
+
+- selling this software or a modified version of it;
+- repackaging this software and charging money for it;
+- distributing this software as part of a paid product or paid service;
+- using this software as a component of a commercial product;
+- offering paid support, hosting, integration, or deployment services based
+  primarily on this software;
+- removing the original author attribution and presenting this software as
+  your own commercial product.
+
+3. Sharing
+
+If you share this software or a modified non-commercial version, you must keep
+the original copyright notice, this license, and visible attribution to the
+original author.
+
+4. No Warranty
+
+This software is provided "as is", without warranty of any kind, express or
+implied. The author does not guarantee that the software will be error-free,
+secure, compatible with every system, or suitable for any particular purpose.
+
+5. Disclaimer of Liability
+
+This software is provided as a personal learning, implementation, and
+experience-sharing project. Some content, documentation, or implementation
+details may have been assisted, corrected, or organized with AI tools.
+
+Because every user's system environment, software version, permission setting,
+runtime installation, shell configuration, and operation method may differ,
+actual results may vary.
+
+Please evaluate risks and back up important data before using this software.
+Any system abnormality, data loss, configuration error, device failure, service
+interruption, or other direct or indirect loss caused by using, installing,
+modifying, building, or referring to this software is the user's responsibility.
+The author is not liable for any related damages or losses.
+
+6. Permission for Commercial Use
+
+If you want to use this software commercially, please contact the author and
+obtain written permission first.
