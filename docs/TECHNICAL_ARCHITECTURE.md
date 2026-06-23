@@ -18,7 +18,7 @@ Project Shortcut Dock 是一個 Windows WPF 桌面工具，核心目標是讓使
 | 圖示載入 | Win32 `SHGetFileInfo`、WPF Imaging、`System.Drawing.Icon` |
 | 開機啟動 | HKCU Registry Run key |
 | 視窗層級 | Win32 `SetWindowPos` |
-| 發佈 | framework-dependent win-x64 ZIP 安裝包 |
+| 發佈 | framework-dependent win-x64 Setup EXE 與 ZIP |
 
 專案目前不依賴第三方 NuGet 套件，降低建置與審查成本。
 
@@ -216,7 +216,21 @@ ProjectShortcutDock
 1. `dotnet build -c Release` 產生 framework-dependent Release 輸出。
 2. 將必要執行檔、`.dll`、`.deps.json`、`.runtimeconfig.json` 與 `image/` 圖示放入安裝包暫存資料夾。
 3. 產生 `install.ps1`，安裝到 `%LOCALAPPDATA%\ProjectShortcutDock` 並建立開始功能表捷徑。
-4. 壓縮成 `ProjectShortcutDock-{version}-win-x64.zip`，作為 GitHub Release asset。
-5. 若未來加入 Inno Setup、NSIS 或 WiX，可再產生 `.exe` 或 `.msi` 安裝檔。
+4. 壓縮成 `ProjectShortcutDock-{version}-win-x64.zip`，供手動安裝。
+5. 將 app 檔案壓成內嵌資源，使用 Windows .NET Framework `csc.exe` 編譯 `tools/SetupBootstrapper.cs`。
+6. 產生 `ProjectShortcutDock-Setup-{version}.exe`，供一般使用者雙擊安裝。
 
 發佈檔不建議提交到 git，應放在 GitHub Releases。
+
+## 安裝器行為
+
+`ProjectShortcutDock-Setup-{version}.exe` 是 bootstrapper：
+
+- 內嵌 Project Shortcut Dock app 檔案。
+- 偵測 `Microsoft.WindowsDesktop.App 10.x` 是否存在。
+- 若不存在，詢問使用者是否下載 Microsoft 官方 `.NET 10 Desktop Runtime` 安裝程式。
+- 安裝 app 到 `%LOCALAPPDATA%\ProjectShortcutDock`。
+- 建立開始功能表捷徑。
+- 安裝完成後啟動程式。
+
+目前 runtime 下載網址來自 Microsoft 官方 .NET 10 下載頁，使用 `.NET Desktop Runtime 10.0.9 win-x64`。

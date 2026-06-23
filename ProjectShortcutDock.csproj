@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tools\*.cs" />
     <Content Include="image\*.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

@@ -14,7 +14,9 @@ $artifacts = Join-Path $root "artifacts"
 $buildOut = Join-Path $root "bin\Release\net10.0-windows"
 $package = Join-Path $artifacts "package"
 $app = Join-Path $package "app"
+$setupExe = Join-Path $artifacts "ProjectShortcutDock-Setup-$Version.exe"
 $zipPath = Join-Path $artifacts "ProjectShortcutDock-$Version-win-x64.zip"
+$appZip = Join-Path $artifacts "app.zip"
 
 Remove-Item -LiteralPath $artifacts -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $artifacts, $app, (Join-Path $app "image") | Out-Null
@@ -65,5 +67,27 @@ Start-Process -FilePath $targetPath
 
 Set-Content -LiteralPath (Join-Path $package "install.ps1") -Value $installScript -Encoding UTF8
 Compress-Archive -Path (Join-Path $package "*") -DestinationPath $zipPath -Force
+Compress-Archive -Path (Join-Path $app "*") -DestinationPath $appZip -Force
 
-Get-Item -LiteralPath $zipPath | Select-Object FullName, Length, LastWriteTime
+$csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if (-not (Test-Path $csc)) {
+    $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"
+}
+if (-not (Test-Path $csc)) {
+    throw "Cannot find .NET Framework csc.exe for setup bootstrapper."
+}
+
+$setupIcon = Join-Path $root "image\project-shortcut-dock.ico"
+
+& $csc `
+    /nologo `
+    /target:winexe `
+    /out:$setupExe `
+    /win32icon:$setupIcon `
+    /resource:$appZip,app.zip `
+    /reference:System.Windows.Forms.dll `
+    /reference:System.IO.Compression.dll `
+    /reference:System.IO.Compression.FileSystem.dll `
+    (Join-Path $root "tools\SetupBootstrapper.cs")
+
+Get-Item -LiteralPath $setupExe, $zipPath | Select-Object FullName, Length, LastWriteTime
