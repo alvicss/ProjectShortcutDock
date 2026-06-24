@@ -2,11 +2,13 @@ using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 
 internal static class UninstallBootstrapper
 {
     private const string AppName = "Project Shortcut Dock";
+    private const string ExeName = "ProjectShortcutDock.exe";
     private const string StartMenuFolderName = "Project Shortcut Dock";
     private const string RunValueName = "ProjectShortcutDock";
     private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock";
@@ -44,14 +46,15 @@ internal static class UninstallBootstrapper
 
             bool removeSettings = removeSettingsResult == DialogResult.Yes;
 
+            EnsureAppHasExited(installDir);
             RemoveStartWithWindows();
-            RemoveUninstallRegistration();
             RemoveStartMenuShortcuts();
-            StartCleanupProcess(installDir, removeSettings ? settingsDir : null);
+            StartCleanupProcess(Process.GetCurrentProcess().Id, installDir, removeSettings ? settingsDir : null);
 
             MessageBox.Show(
-                "已開始移除 Project Shortcut Dock。" + Environment.NewLine +
-                "若有檔案仍在使用中，請稍後再確認安裝資料夾是否已刪除。",
+                "已啟動 Project Shortcut Dock 的移除程序。" + Environment.NewLine +
+                "關閉此視窗後，系統會繼續清理安裝資料夾。" + Environment.NewLine +
+                "只有在安裝資料夾刪除完成後，這個程式才會從已安裝的應用程式清單中移除。",
                 AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
@@ -90,6 +93,39 @@ internal static class UninstallBootstrapper
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ProjectShortcutDock");
+    }
+
+    private static void EnsureAppHasExited(string installDir)
+    {
+        string installedExePath = Path.Combine(installDir, ExeName);
+        string processName = Path.GetFileNameWithoutExtension(ExeName);
+
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            try
+            {
+                string processPath = TryGetProcessPath(process);
+                if (!string.Equals(processPath, installedExePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!process.HasExited)
+                {
+                    process.CloseMainWindow();
+                    if (!process.WaitForExit(5000))
+                    {
+                        throw new InvalidOperationException(
+                            "偵測到 Project Shortcut Dock 仍在執行。" + Environment.NewLine +
+                            "請先從系統匣結束程式，或在工作管理員中關閉 ProjectShortcutDock.exe 後再試一次。");
+                    }
+                }
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
     }
 
     private static void RemoveStartWithWindows()
@@ -134,23 +170,78 @@ internal static class UninstallBootstrapper
         }
     }
 
-    private static void StartCleanupProcess(string installDir, string settingsDir)
+    private static void StartCleanupProcess(int uninstallProcessId, string installDir, string settingsDir)
     {
-        string arguments = "/c ping 127.0.0.1 -n 3 > nul" +
-            " & rmdir /s /q \"" + installDir + "\"";
-
-        if (!string.IsNullOrWhiteSpace(settingsDir))
-        {
-            arguments += " & rmdir /s /q \"" + settingsDir + "\"";
-        }
+        string scriptPath = Path.Combine(
+            Path.GetTempPath(),
+            "ProjectShortcutDock-uninstall-" + Guid.NewGuid().ToString("N") + ".ps1");
+        File.WriteAllText(scriptPath, BuildCleanupScript(uninstallProcessId, installDir, settingsDir, scriptPath), new UTF8Encoding(false));
 
         Process.Start(new ProcessStartInfo
         {
-            FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe",
-            Arguments = arguments,
+            FileName = "powershell.exe",
+            Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"",
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden
         });
+    }
+
+    private static string TryGetProcessPath(Process process)
+    {
+        try
+        {
+            return process.MainModule != null ? process.MainModule.FileName : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string BuildCleanupScript(int uninstallProcessId, string installDir, string settingsDir, string scriptPath)
+    {
+        string installDirLiteral = EscapePowerShellSingleQuotedString(installDir);
+        string settingsDirLiteral = EscapePowerShellSingleQuotedString(settingsDir ?? string.Empty);
+        string scriptPathLiteral = EscapePowerShellSingleQuotedString(scriptPath);
+
+        return
+            "$ErrorActionPreference = 'SilentlyContinue'" + Environment.NewLine +
+            "$uninstallProcessId = " + uninstallProcessId + Environment.NewLine +
+            "$installDir = '" + installDirLiteral + "'" + Environment.NewLine +
+            "$settingsDir = '" + settingsDirLiteral + "'" + Environment.NewLine +
+            "$scriptPath = '" + scriptPathLiteral + "'" + Environment.NewLine +
+            "$uninstallRegistryPath = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ProjectShortcutDock'" + Environment.NewLine +
+            "function Wait-ForProcessExit([int]$processId) {" + Environment.NewLine +
+            "    for ($attempt = 0; $attempt -lt 120; $attempt++) {" + Environment.NewLine +
+            "        if (-not (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { return }" + Environment.NewLine +
+            "        Start-Sleep -Milliseconds 500" + Environment.NewLine +
+            "    }" + Environment.NewLine +
+            "}" + Environment.NewLine +
+            "function Remove-DirectoryWithRetries([string]$path) {" + Environment.NewLine +
+            "    if ([string]::IsNullOrWhiteSpace($path)) { return $true }" + Environment.NewLine +
+            "    for ($attempt = 0; $attempt -lt 20; $attempt++) {" + Environment.NewLine +
+            "        if (-not (Test-Path -LiteralPath $path)) { return $true }" + Environment.NewLine +
+            "        Get-ChildItem -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {" + Environment.NewLine +
+            "            if (-not $_.PSIsContainer) { [System.IO.File]::SetAttributes($_.FullName, [System.IO.FileAttributes]::Normal) }" + Environment.NewLine +
+            "        }" + Environment.NewLine +
+            "        Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue" + Environment.NewLine +
+            "        Start-Sleep -Milliseconds 500" + Environment.NewLine +
+            "    }" + Environment.NewLine +
+            "    return -not (Test-Path -LiteralPath $path)" + Environment.NewLine +
+            "}" + Environment.NewLine +
+            "Wait-ForProcessExit -processId $uninstallProcessId" + Environment.NewLine +
+            "$installRemoved = Remove-DirectoryWithRetries -path $installDir" + Environment.NewLine +
+            "if ($installRemoved) {" + Environment.NewLine +
+            "    Remove-Item -LiteralPath $uninstallRegistryPath -Recurse -Force -ErrorAction SilentlyContinue" + Environment.NewLine +
+            "    Remove-DirectoryWithRetries -path $settingsDir | Out-Null" + Environment.NewLine +
+            "}" + Environment.NewLine +
+            "Start-Sleep -Milliseconds 500" + Environment.NewLine +
+            "Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue" + Environment.NewLine;
+    }
+
+    private static string EscapePowerShellSingleQuotedString(string value)
+    {
+        return value.Replace("'", "''");
     }
 }

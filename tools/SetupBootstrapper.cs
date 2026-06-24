@@ -11,6 +11,7 @@ internal static class SetupBootstrapper
     private const string AppName = "Project Shortcut Dock";
     private const string ExeName = "ProjectShortcutDock.exe";
     private const string UninstallExeName = "ProjectShortcutDock.Uninstall.exe";
+    private const string CurrentVersion = "0.1.4";
     private const string PublisherName = "alvicss";
     private const string StartMenuFolderName = "Project Shortcut Dock";
     private const string StartWithWindowsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -33,6 +34,7 @@ internal static class SetupBootstrapper
                 "ProjectShortcutDock");
             Directory.CreateDirectory(installDir);
 
+            EnsureInstalledAppIsClosed(installDir);
             ExtractApp(installDir);
             CreateStartMenuShortcuts(installDir);
             RegisterUninstallInfo(installDir);
@@ -171,6 +173,12 @@ internal static class SetupBootstrapper
                 "請先手動安裝 .NET 10 Desktop Runtime (x64) 後，再重新執行安裝程式：" +
                 Environment.NewLine + RuntimeManualInstallUrl;
         }
+        else if (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            message += Environment.NewLine + Environment.NewLine +
+                "可能原因：舊版本仍在執行，或先前解除安裝尚未完全清理。" + Environment.NewLine +
+                "請先確認 Project Shortcut Dock 已完全結束，必要時刪除 %LOCALAPPDATA%\\ProjectShortcutDock 後再重新安裝。";
+        }
 
         return message;
     }
@@ -194,17 +202,150 @@ internal static class SetupBootstrapper
     private static void ExtractApp(string installDir)
     {
         string tempZip = Path.Combine(Path.GetTempPath(), "ProjectShortcutDock-app.zip");
+        string stagingDir = Path.Combine(Path.GetTempPath(), "ProjectShortcutDock-staging-" + Guid.NewGuid().ToString("N"));
         ExtractEmbeddedFile("app.zip", tempZip);
 
-        if (Directory.Exists(installDir))
+        try
         {
-            foreach (string file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
+            if (Directory.Exists(stagingDir))
+            {
+                Directory.Delete(stagingDir, true);
+            }
+
+            Directory.CreateDirectory(stagingDir);
+            ZipFile.ExtractToDirectory(tempZip, stagingDir);
+            PrepareInstallDirectory(installDir);
+            CopyDirectory(stagingDir, installDir);
+        }
+        finally
+        {
+            TryDeleteDirectory(stagingDir);
+            TryDeleteFile(tempZip);
+        }
+    }
+
+    private static void EnsureInstalledAppIsClosed(string installDir)
+    {
+        string installedExePath = Path.Combine(installDir, ExeName);
+        string processName = Path.GetFileNameWithoutExtension(ExeName);
+
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            try
+            {
+                string processPath = TryGetProcessPath(process);
+                if (!string.Equals(processPath, installedExePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!process.HasExited)
+                {
+                    process.CloseMainWindow();
+                    if (!process.WaitForExit(5000))
+                    {
+                        throw new InvalidOperationException(
+                            "偵測到舊版 Project Shortcut Dock 仍在執行。" + Environment.NewLine +
+                            "請先從系統匣結束程式，或在工作管理員中關閉 ProjectShortcutDock.exe 後再重新安裝。");
+                    }
+                }
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private static void PrepareInstallDirectory(string installDir)
+    {
+        if (!Directory.Exists(installDir))
+        {
+            Directory.CreateDirectory(installDir);
+            return;
+        }
+
+        foreach (string file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
+        {
+            File.SetAttributes(file, FileAttributes.Normal);
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (string directory in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            string relativePath = directory.Substring(sourceDir.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            Directory.CreateDirectory(Path.Combine(destinationDir, relativePath));
+        }
+
+        foreach (string file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            string relativePath = file.Substring(sourceDir.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string destinationPath = Path.Combine(destinationDir, relativePath);
+            string destinationDirectory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                Directory.CreateDirectory(destinationDirectory);
+            }
+
+            if (File.Exists(destinationPath))
+            {
+                File.SetAttributes(destinationPath, FileAttributes.Normal);
+            }
+
+            File.Copy(file, destinationPath, true);
+        }
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
+
+            foreach (string file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
             {
                 File.SetAttributes(file, FileAttributes.Normal);
             }
-        }
 
-        ZipFile.ExtractToDirectory(tempZip, installDir);
+            Directory.Delete(path, true);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.SetAttributes(path, FileAttributes.Normal);
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static string TryGetProcessPath(Process process)
+    {
+        try
+        {
+            return process.MainModule != null ? process.MainModule.FileName : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private static void CreateStartMenuShortcuts(string installDir)
@@ -245,7 +386,7 @@ internal static class SetupBootstrapper
     {
         string targetPath = Path.Combine(installDir, ExeName);
         string uninstallPath = Path.Combine(installDir, UninstallExeName);
-        string displayVersion = FileVersionInfo.GetVersionInfo(targetPath).ProductVersion ?? "0.1.2";
+        string displayVersion = FileVersionInfo.GetVersionInfo(targetPath).ProductVersion ?? CurrentVersion;
 
         using (RegistryKey key = Registry.CurrentUser.CreateSubKey(UninstallRegistryPath))
         {
