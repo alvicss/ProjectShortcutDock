@@ -245,7 +245,7 @@ internal static class SetupBootstrapper
     {
         string targetPath = Path.Combine(installDir, ExeName);
         string uninstallPath = Path.Combine(installDir, UninstallExeName);
-        string displayVersion = FileVersionInfo.GetVersionInfo(targetPath).ProductVersion ?? "0.1.1";
+        string displayVersion = FileVersionInfo.GetVersionInfo(targetPath).ProductVersion ?? "0.1.2";
 
         using (RegistryKey key = Registry.CurrentUser.CreateSubKey(UninstallRegistryPath))
         {
