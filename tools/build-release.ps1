@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.1.2"
+    [string]$Version = "0.1.3"
 )
 
 $ErrorActionPreference = "Stop"
@@ -58,6 +58,8 @@ if (-not (Test-Path $csc)) {
 }
 
 $setupIcon = Join-Path $root "image\project-shortcut-dock.ico"
+$appZipResource = "/resource:$appZip,app.zip"
+$runtimeResource = "/resource:$runtimeInstallerPath,dotnet-runtime-installer.exe"
 
 & $csc `
     /nologo `
@@ -121,8 +123,8 @@ Compress-Archive -Path (Join-Path $app "*") -DestinationPath $appZip -Force
     /target:winexe `
     /out:$setupExe `
     /win32icon:$setupIcon `
-    /resource:$appZip,app.zip `
-    /resource:$runtimeInstallerPath,dotnet-runtime-installer.exe `
+    $appZipResource `
+    $runtimeResource `
     /reference:System.Windows.Forms.dll `
     /reference:System.IO.Compression.dll `
     /reference:System.IO.Compression.FileSystem.dll `

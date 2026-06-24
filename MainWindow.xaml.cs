@@ -41,6 +41,7 @@ public partial class MainWindow : Window
             ["AppTitle"] = "專案捷徑",
             ["Subtitle"] = "將專案資料夾拖放到這裡",
             ["Settings"] = "設定",
+            ["About"] = "關於",
             ["HideToTray"] = "隱藏到系統匣",
             ["Style"] = "樣式",
             ["WindowMode"] = "視窗模式",
@@ -69,6 +70,7 @@ public partial class MainWindow : Window
             ["AppTitle"] = "Project Shortcuts",
             ["Subtitle"] = "Drop project folders here",
             ["Settings"] = "Settings",
+            ["About"] = "About",
             ["HideToTray"] = "Hide to tray",
             ["Style"] = "Style",
             ["WindowMode"] = "Window mode",
@@ -97,6 +99,7 @@ public partial class MainWindow : Window
             ["AppTitle"] = "プロジェクトショートカット",
             ["Subtitle"] = "プロジェクトフォルダーをここにドロップ",
             ["Settings"] = "設定",
+            ["About"] = "About",
             ["HideToTray"] = "トレイに隠す",
             ["Style"] = "スタイル",
             ["WindowMode"] = "ウィンドウモード",
@@ -412,12 +415,15 @@ public partial class MainWindow : Window
         return Texts[language].TryGetValue(key, out var text) ? text : Texts[DefaultLanguage][key];
     }
 
+    internal string GetText(string key) => T(key);
+
     private void ApplyLanguage()
     {
         Title = T("AppTitle");
         TitleText.Text = T("AppTitle");
         SubtitleText.Text = T("Subtitle");
         SettingsButton.ToolTip = T("Settings");
+        AboutButton.ToolTip = T("About");
         HideButton.ToolTip = T("HideToTray");
         StyleLabel.Text = T("Style");
         WindowModeLabel.Text = T("WindowMode");
@@ -583,6 +589,12 @@ public partial class MainWindow : Window
     private void ToggleSettings_Click(object sender, RoutedEventArgs e)
     {
         SettingsPanel.Visibility = SettingsPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        var aboutWindow = new AboutWindow(this);
+        aboutWindow.ShowDialog();
     }
 
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();

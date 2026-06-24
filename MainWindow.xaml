@@ -57,6 +57,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock x:Name="TitleText"
@@ -76,6 +77,15 @@
                         ToolTip="Settings"
                         Click="ToggleSettings_Click" />
                 <Button Grid.Column="2"
+                        Style="{StaticResource IconButton}"
+                        Content="?"
+                        x:Name="AboutButton"
+                        FontFamily="Segoe UI"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        ToolTip="About"
+                        Click="About_Click" />
+                <Button Grid.Column="3"
                         Style="{StaticResource IconButton}"
                         Content="&#xE711;"
                         x:Name="HideButton"

@@ -1,0 +1,57 @@
+<Window x:Class="ProjectShortcutDock.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About"
+        Width="440"
+        Height="250"
+        MinWidth="440"
+        MinHeight="250"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource WindowBrush}">
+    <Border Margin="10"
+            Padding="16"
+            CornerRadius="10"
+            BorderThickness="1"
+            BorderBrush="{DynamicResource BorderBrush}"
+            Background="{DynamicResource WindowBrush}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0"
+                       Text="Project Shortcut Dock"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" />
+
+            <TextBlock Grid.Row="1"
+                       Margin="0,12,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextBrush}"
+                       FontSize="13"
+                       Text="集中整理常用專案資料夾的小工具。" />
+
+            <TextBlock Grid.Row="2"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextBrush}"
+                       FontSize="13"
+                       Text="支援拖曳加入捷徑、左鍵雙擊開啟資料夾、右鍵選單可使用更多操作，包含開啟上層資料夾、複製路徑、切換圖示，或從目前位置開啟終端機與常用 CLI。" />
+
+            <TextBlock Grid.Row="3"
+                       Margin="0,16,0,0"
+                       Foreground="{DynamicResource TextBrush}"
+                       FontSize="13">
+                <Run Text="作者網站：" />
+                <Hyperlink NavigateUri="https://halfmemo.com/ai-notes/project-shortcut-dock/"
+                           RequestNavigate="AuthorLink_RequestNavigate">半桶水的 AI 筆記</Hyperlink>
+            </TextBlock>
+        </Grid>
+    </Border>
+</Window>
