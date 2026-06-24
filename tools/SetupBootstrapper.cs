@@ -2,16 +2,16 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Net;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 internal static class SetupBootstrapper
 {
     private const string AppName = "Project Shortcut Dock";
     private const string ExeName = "ProjectShortcutDock.exe";
-    private const string RuntimeDownloadUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe";
+    private const string RuntimeInstallerResourceName = "dotnet-runtime-installer.exe";
+    private const string RuntimeInstallerFileName = "windowsdesktop-runtime-10.0.9-win-x64.exe";
+    private const string RuntimeManualInstallUrl = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-10.0.9-windows-x64-installer";
 
     [STAThread]
     private static int Main()
@@ -41,7 +41,7 @@ internal static class SetupBootstrapper
         catch (Exception ex)
         {
             MessageBox.Show(
-                "安裝失敗：" + Environment.NewLine + ex.Message,
+                BuildFailureMessage(ex),
                 AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
@@ -57,7 +57,7 @@ internal static class SetupBootstrapper
         }
 
         DialogResult result = MessageBox.Show(
-            "此程式需要 .NET 10 Desktop Runtime。現在要從 Microsoft 官方網站下載並安裝嗎？",
+            "此程式需要 .NET 10 Desktop Runtime。現在要安裝內嵌的 Microsoft 官方離線安裝包嗎？",
             AppName,
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
@@ -67,34 +67,52 @@ internal static class SetupBootstrapper
             throw new InvalidOperationException("未安裝 .NET 10 Desktop Runtime。");
         }
 
-        string installerPath = Path.Combine(Path.GetTempPath(), "windowsdesktop-runtime-10.0.9-win-x64.exe");
-        using (var client = new WebClient())
+        string installerPath = Path.Combine(Path.GetTempPath(), RuntimeInstallerFileName);
+        try
         {
-            client.DownloadFile(RuntimeDownloadUrl, installerPath);
+            ExtractEmbeddedFile(RuntimeInstallerResourceName, installerPath);
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeInstallException(
+                "無法準備 .NET 10 Desktop Runtime 安裝檔。" + Environment.NewLine +
+                "原因：" + ex.Message,
+                ex);
         }
 
-        var process = Process.Start(new ProcessStartInfo
+        Process process;
+        try
         {
-            FileName = installerPath,
-            Arguments = "/install /quiet /norestart",
-            UseShellExecute = true,
-            Verb = "runas"
-        });
+            process = Process.Start(new ProcessStartInfo
+            {
+                FileName = installerPath,
+                Arguments = "/install /quiet /norestart",
+                UseShellExecute = true,
+                Verb = "runas"
+            });
+        }
+        catch (Exception ex)
+        {
+            throw new RuntimeInstallException(
+                "無法啟動 .NET 10 Desktop Runtime 安裝程式。" + Environment.NewLine +
+                "原因：" + ex.Message,
+                ex);
+        }
 
         if (process == null)
         {
-            throw new InvalidOperationException("無法啟動 .NET Desktop Runtime 安裝程式。");
+            throw new RuntimeInstallException("無法啟動 .NET 10 Desktop Runtime 安裝程式。");
         }
 
         process.WaitForExit();
         if (process.ExitCode != 0 && process.ExitCode != 3010)
         {
-            throw new InvalidOperationException(".NET Desktop Runtime 安裝失敗，ExitCode=" + process.ExitCode + "。");
+            throw new RuntimeInstallException(".NET 10 Desktop Runtime 安裝失敗，ExitCode=" + process.ExitCode + "。");
         }
 
         if (!HasDesktopRuntime10())
         {
-            throw new InvalidOperationException("找不到 .NET 10 Desktop Runtime。請重新啟動電腦或手動安裝後再試。");
+            throw new RuntimeInstallException("找不到 .NET 10 Desktop Runtime。請重新啟動電腦或手動安裝後再試。");
         }
     }
 
@@ -137,21 +155,39 @@ internal static class SetupBootstrapper
         }
     }
 
-    private static void ExtractApp(string installDir)
+    private static string BuildFailureMessage(Exception ex)
     {
-        string tempZip = Path.Combine(Path.GetTempPath(), "ProjectShortcutDock-app.zip");
-        using (Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.zip"))
+        string message = "安裝失敗：" + Environment.NewLine + ex.Message;
+        if (ex is RuntimeInstallException)
+        {
+            message += Environment.NewLine + Environment.NewLine +
+                "請先手動安裝 .NET 10 Desktop Runtime (x64) 後，再重新執行安裝程式：" +
+                Environment.NewLine + RuntimeManualInstallUrl;
+        }
+
+        return message;
+    }
+
+    private static void ExtractEmbeddedFile(string resourceName, string destinationPath)
+    {
+        using (Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
         {
             if (resource == null)
             {
-                throw new InvalidOperationException("安裝檔缺少內嵌 app.zip。");
+                throw new InvalidOperationException("找不到內嵌資源：" + resourceName + "。");
             }
 
-            using (var output = File.Create(tempZip))
+            using (var output = File.Create(destinationPath))
             {
                 resource.CopyTo(output);
             }
         }
+    }
+
+    private static void ExtractApp(string installDir)
+    {
+        string tempZip = Path.Combine(Path.GetTempPath(), "ProjectShortcutDock-app.zip");
+        ExtractEmbeddedFile("app.zip", tempZip);
 
         if (Directory.Exists(installDir))
         {
@@ -186,5 +222,18 @@ internal static class SetupBootstrapper
         shortcut.WorkingDirectory = installDir;
         shortcut.IconLocation = targetPath + ",0";
         shortcut.Save();
+    }
+
+    private sealed class RuntimeInstallException : Exception
+    {
+        public RuntimeInstallException(string message)
+            : base(message)
+        {
+        }
+
+        public RuntimeInstallException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

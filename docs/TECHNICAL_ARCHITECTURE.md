@@ -228,9 +228,10 @@ ProjectShortcutDock
 
 - 內嵌 Project Shortcut Dock app 檔案。
 - 偵測 `Microsoft.WindowsDesktop.App 10.x` 是否存在。
-- 若不存在，詢問使用者是否下載 Microsoft 官方 `.NET 10 Desktop Runtime` 安裝程式。
+- 若不存在，詢問使用者是否安裝內嵌的 Microsoft 官方 `.NET 10 Desktop Runtime` 離線安裝程式。
 - 安裝 app 到 `%LOCALAPPDATA%\ProjectShortcutDock`。
 - 建立開始功能表捷徑。
 - 安裝完成後啟動程式。
+- 若 runtime 自動安裝失敗，顯示原因與 Microsoft 官方手動安裝連結。
 
-目前 runtime 下載網址來自 Microsoft 官方 .NET 10 下載頁，使用 `.NET Desktop Runtime 10.0.9 win-x64`。
+目前內嵌的 runtime 安裝檔是 Microsoft 官方 `.NET Desktop Runtime 10.0.9 win-x64` 離線安裝程式。

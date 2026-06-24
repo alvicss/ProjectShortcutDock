@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.1.0"
+    [string]$Version = "0.1.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,11 +17,18 @@ $app = Join-Path $package "app"
 $setupExe = Join-Path $artifacts "ProjectShortcutDock-Setup-$Version.exe"
 $zipPath = Join-Path $artifacts "ProjectShortcutDock-$Version-win-x64.zip"
 $appZip = Join-Path $artifacts "app.zip"
+$runtimeVersion = "10.0.9"
+$runtimeInstallerName = "windowsdesktop-runtime-$runtimeVersion-win-x64.exe"
+$runtimeInstallerUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/$runtimeVersion/$runtimeInstallerName"
+$runtimeInstallerPath = Join-Path $artifacts $runtimeInstallerName
 
 Remove-Item -LiteralPath $artifacts -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $artifacts, $app, (Join-Path $app "image") | Out-Null
 
 & $dotnet build (Join-Path $root "ProjectShortcutDock.csproj") -c Release
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri $runtimeInstallerUrl -OutFile $runtimeInstallerPath
 
 $requiredFiles = @(
     "ProjectShortcutDock.exe",
@@ -85,6 +92,7 @@ $setupIcon = Join-Path $root "image\project-shortcut-dock.ico"
     /out:$setupExe `
     /win32icon:$setupIcon `
     /resource:$appZip,app.zip `
+    /resource:$runtimeInstallerPath,dotnet-runtime-installer.exe `
     /reference:System.Windows.Forms.dll `
     /reference:System.IO.Compression.dll `
     /reference:System.IO.Compression.FileSystem.dll `
