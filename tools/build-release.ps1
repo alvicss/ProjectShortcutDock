@@ -14,6 +14,7 @@ $artifacts = Join-Path $root "artifacts"
 $buildOut = Join-Path $root "bin\Release\net10.0-windows"
 $package = Join-Path $artifacts "package"
 $app = Join-Path $package "app"
+$uninstallExe = Join-Path $app "ProjectShortcutDock.Uninstall.exe"
 $setupExe = Join-Path $artifacts "ProjectShortcutDock-Setup-$Version.exe"
 $zipPath = Join-Path $artifacts "ProjectShortcutDock-$Version-win-x64.zip"
 $appZip = Join-Path $artifacts "app.zip"
@@ -48,6 +49,24 @@ Copy-Item -LiteralPath `
     (Join-Path $root "image\agy.ico") `
     -Destination (Join-Path $app "image") -Force
 
+$csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if (-not (Test-Path $csc)) {
+    $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"
+}
+if (-not (Test-Path $csc)) {
+    throw "Cannot find .NET Framework csc.exe for setup bootstrapper."
+}
+
+$setupIcon = Join-Path $root "image\project-shortcut-dock.ico"
+
+& $csc `
+    /nologo `
+    /target:winexe `
+    /out:$uninstallExe `
+    /win32icon:$setupIcon `
+    /reference:System.Windows.Forms.dll `
+    (Join-Path $root "tools\UninstallBootstrapper.cs")
+
 $installScript = @'
 $ErrorActionPreference = "Stop"
 
@@ -60,31 +79,42 @@ New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 Copy-Item -Path (Join-Path $appSource "*") -Destination $installDir -Recurse -Force
 
 New-Item -ItemType Directory -Path $startMenuDir -Force | Out-Null
-$shortcutPath = Join-Path $startMenuDir "Project Shortcut Dock.lnk"
 $targetPath = Join-Path $installDir "ProjectShortcutDock.exe"
+$uninstallPath = Join-Path $installDir "ProjectShortcutDock.Uninstall.exe"
 $shell = New-Object -ComObject WScript.Shell
-$shortcut = $shell.CreateShortcut($shortcutPath)
+$shortcut = $shell.CreateShortcut((Join-Path $startMenuDir "Project Shortcut Dock.lnk"))
 $shortcut.TargetPath = $targetPath
 $shortcut.WorkingDirectory = $installDir
 $shortcut.IconLocation = "$targetPath,0"
 $shortcut.Save()
 
+if (Test-Path $uninstallPath) {
+    $uninstallShortcut = $shell.CreateShortcut((Join-Path $startMenuDir "Uninstall Project Shortcut Dock.lnk"))
+    $uninstallShortcut.TargetPath = $uninstallPath
+    $uninstallShortcut.WorkingDirectory = $installDir
+    $uninstallShortcut.IconLocation = "$targetPath,0"
+    $uninstallShortcut.Save()
+}
+
+$uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock"
+New-Item -Path $uninstallKey -Force | Out-Null
+Set-ItemProperty -Path $uninstallKey -Name DisplayName -Value "Project Shortcut Dock"
+Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value "{VERSION}"
+Set-ItemProperty -Path $uninstallKey -Name Publisher -Value "alvicss"
+Set-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $installDir
+Set-ItemProperty -Path $uninstallKey -Name DisplayIcon -Value $targetPath
+Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value ('"' + $uninstallPath + '"')
+Set-ItemProperty -Path $uninstallKey -Name QuietUninstallString -Value ('"' + $uninstallPath + '"')
+Set-ItemProperty -Path $uninstallKey -Name InstallDate -Value (Get-Date -Format yyyyMMdd)
+Set-ItemProperty -Path $uninstallKey -Name NoModify -Type DWord -Value 1
+Set-ItemProperty -Path $uninstallKey -Name NoRepair -Type DWord -Value 1
+
 Start-Process -FilePath $targetPath
-'@
+'@.Replace("{VERSION}", $Version)
 
 Set-Content -LiteralPath (Join-Path $package "install.ps1") -Value $installScript -Encoding UTF8
 Compress-Archive -Path (Join-Path $package "*") -DestinationPath $zipPath -Force
 Compress-Archive -Path (Join-Path $app "*") -DestinationPath $appZip -Force
-
-$csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-if (-not (Test-Path $csc)) {
-    $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"
-}
-if (-not (Test-Path $csc)) {
-    throw "Cannot find .NET Framework csc.exe for setup bootstrapper."
-}
-
-$setupIcon = Join-Path $root "image\project-shortcut-dock.ico"
 
 & $csc `
     /nologo `

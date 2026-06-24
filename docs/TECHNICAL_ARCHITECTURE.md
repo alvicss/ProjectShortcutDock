@@ -216,9 +216,10 @@ ProjectShortcutDock
 1. `dotnet build -c Release` 產生 framework-dependent Release 輸出。
 2. 將必要執行檔、`.dll`、`.deps.json`、`.runtimeconfig.json` 與 `image/` 圖示放入安裝包暫存資料夾。
 3. 產生 `install.ps1`，安裝到 `%LOCALAPPDATA%\ProjectShortcutDock` 並建立開始功能表捷徑。
-4. 壓縮成 `ProjectShortcutDock-{version}-win-x64.zip`，供手動安裝。
-5. 將 app 檔案壓成內嵌資源，使用 Windows .NET Framework `csc.exe` 編譯 `tools/SetupBootstrapper.cs`。
-6. 產生 `ProjectShortcutDock-Setup-{version}.exe`，供一般使用者雙擊安裝。
+4. 一併放入 `ProjectShortcutDock.Uninstall.exe`，供 ZIP 與 Setup 安裝版共用解除安裝流程。
+5. 壓縮成 `ProjectShortcutDock-{version}-win-x64.zip`，供手動安裝。
+6. 將 app 檔案壓成內嵌資源，使用 Windows .NET Framework `csc.exe` 編譯 `tools/SetupBootstrapper.cs`。
+7. 產生 `ProjectShortcutDock-Setup-{version}.exe`，供一般使用者雙擊安裝。
 
 發佈檔不建議提交到 git，應放在 GitHub Releases。
 
@@ -230,8 +231,19 @@ ProjectShortcutDock
 - 偵測 `Microsoft.WindowsDesktop.App 10.x` 是否存在。
 - 若不存在，詢問使用者是否安裝內嵌的 Microsoft 官方 `.NET 10 Desktop Runtime` 離線安裝程式。
 - 安裝 app 到 `%LOCALAPPDATA%\ProjectShortcutDock`。
-- 建立開始功能表捷徑。
+- 建立開始功能表捷徑與解除安裝捷徑。
+- 寫入目前使用者的 Windows `Uninstall` registry，讓程式出現在「已安裝的應用程式」。
 - 安裝完成後啟動程式。
 - 若 runtime 自動安裝失敗，顯示原因與 Microsoft 官方手動安裝連結。
 
 目前內嵌的 runtime 安裝檔是 Microsoft 官方 `.NET Desktop Runtime 10.0.9 win-x64` 離線安裝程式。
+
+## 解除安裝行為
+
+解除安裝程式為 `ProjectShortcutDock.Uninstall.exe`，會：
+
+- 刪除 `%LOCALAPPDATA%\ProjectShortcutDock`
+- 刪除開始功能表捷徑
+- 刪除 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock`
+- 刪除 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `ProjectShortcutDock`
+- 詢問是否連 `%APPDATA%\ProjectShortcutDock` 設定一起刪除

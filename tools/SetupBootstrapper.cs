@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -9,6 +10,11 @@ internal static class SetupBootstrapper
 {
     private const string AppName = "Project Shortcut Dock";
     private const string ExeName = "ProjectShortcutDock.exe";
+    private const string UninstallExeName = "ProjectShortcutDock.Uninstall.exe";
+    private const string PublisherName = "alvicss";
+    private const string StartMenuFolderName = "Project Shortcut Dock";
+    private const string StartWithWindowsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock";
     private const string RuntimeInstallerResourceName = "dotnet-runtime-installer.exe";
     private const string RuntimeInstallerFileName = "windowsdesktop-runtime-10.0.9-win-x64.exe";
     private const string RuntimeManualInstallUrl = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-10.0.9-windows-x64-installer";
@@ -28,7 +34,8 @@ internal static class SetupBootstrapper
             Directory.CreateDirectory(installDir);
 
             ExtractApp(installDir);
-            CreateStartMenuShortcut(installDir);
+            CreateStartMenuShortcuts(installDir);
+            RegisterUninstallInfo(installDir);
 
             Process.Start(Path.Combine(installDir, ExeName));
             MessageBox.Show(
@@ -200,15 +207,16 @@ internal static class SetupBootstrapper
         ZipFile.ExtractToDirectory(tempZip, installDir);
     }
 
-    private static void CreateStartMenuShortcut(string installDir)
+    private static void CreateStartMenuShortcuts(string installDir)
     {
         string startMenuDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Microsoft\\Windows\\Start Menu\\Programs\\Project Shortcut Dock");
+            "Microsoft\\Windows\\Start Menu\\Programs",
+            StartMenuFolderName);
         Directory.CreateDirectory(startMenuDir);
 
-        string shortcutPath = Path.Combine(startMenuDir, "Project Shortcut Dock.lnk");
         string targetPath = Path.Combine(installDir, ExeName);
+        string uninstallPath = Path.Combine(installDir, UninstallExeName);
 
         Type shellType = Type.GetTypeFromProgID("WScript.Shell");
         if (shellType == null)
@@ -217,11 +225,62 @@ internal static class SetupBootstrapper
         }
 
         dynamic shell = Activator.CreateInstance(shellType);
+        CreateShortcut(shell, Path.Combine(startMenuDir, "Project Shortcut Dock.lnk"), targetPath, installDir, targetPath + ",0");
+        if (File.Exists(uninstallPath))
+        {
+            CreateShortcut(shell, Path.Combine(startMenuDir, "Uninstall Project Shortcut Dock.lnk"), uninstallPath, installDir, targetPath + ",0");
+        }
+    }
+
+    private static void CreateShortcut(dynamic shell, string shortcutPath, string targetPath, string workingDirectory, string iconLocation)
+    {
         dynamic shortcut = shell.CreateShortcut(shortcutPath);
         shortcut.TargetPath = targetPath;
-        shortcut.WorkingDirectory = installDir;
-        shortcut.IconLocation = targetPath + ",0";
+        shortcut.WorkingDirectory = workingDirectory;
+        shortcut.IconLocation = iconLocation;
         shortcut.Save();
+    }
+
+    private static void RegisterUninstallInfo(string installDir)
+    {
+        string targetPath = Path.Combine(installDir, ExeName);
+        string uninstallPath = Path.Combine(installDir, UninstallExeName);
+        string displayVersion = FileVersionInfo.GetVersionInfo(targetPath).ProductVersion ?? "0.1.1";
+
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(UninstallRegistryPath))
+        {
+            if (key == null)
+            {
+                throw new InvalidOperationException("無法建立解除安裝登錄資訊。");
+            }
+
+            key.SetValue("DisplayName", AppName);
+            key.SetValue("DisplayVersion", displayVersion);
+            key.SetValue("Publisher", PublisherName);
+            key.SetValue("InstallLocation", installDir);
+            key.SetValue("DisplayIcon", targetPath);
+            key.SetValue("UninstallString", "\"" + uninstallPath + "\"");
+            key.SetValue("QuietUninstallString", "\"" + uninstallPath + "\"");
+            key.SetValue("InstallDate", DateTime.Now.ToString("yyyyMMdd"));
+            key.SetValue("NoModify", 1, RegistryValueKind.DWord);
+            key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+        }
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(StartWithWindowsRegistryPath, true))
+        {
+            if (key == null)
+            {
+                return;
+            }
+
+            object existingValue = key.GetValue("ProjectShortcutDock");
+            if (existingValue == null)
+            {
+                return;
+            }
+
+            key.SetValue("ProjectShortcutDock", "\"" + targetPath + "\"");
+        }
     }
 
     private sealed class RuntimeInstallException : Exception

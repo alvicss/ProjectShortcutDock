@@ -51,7 +51,7 @@ ProjectShortcutDock-Setup-0.1.1.exe
 1. 檢查是否已安裝 `.NET 10 Desktop Runtime`。
 2. 如果沒有，詢問是否安裝內嵌的 Microsoft 官方 `.NET 10 Desktop Runtime` 離線安裝包。
 3. 將程式安裝到目前使用者資料夾。
-4. 建立開始功能表捷徑。
+4. 建立開始功能表捷徑與解除安裝入口。
 5. 安裝完成後啟動 Project Shortcut Dock。
 
 如果 runtime 自動安裝失敗，安裝器會顯示原因，並附上 Microsoft 官方手動安裝連結。
@@ -121,6 +121,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 這些資料都在你自己的 Windows 使用者資料夾裡。Project Shortcut Dock 不會把設定上傳到任何地方。
+
+## 要怎麼移除
+
+安裝版可直接從 Windows 的「已安裝的應用程式」移除，或從開始功能表執行：
+
+```text
+Uninstall Project Shortcut Dock
+```
+
+解除安裝會移除：
+
+- `%LOCALAPPDATA%\ProjectShortcutDock`
+- 開始功能表捷徑
+- Windows 的解除安裝登錄資訊
+- 隨 Windows 啟動登錄值
+
+解除安裝時會再詢問你是否連 `%APPDATA%\ProjectShortcutDock` 的設定與捷徑清單一起刪除。
 
 ## 會不會刪掉我的專案？
 
