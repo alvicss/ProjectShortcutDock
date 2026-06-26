@@ -15,8 +15,9 @@ public static class IconHelper
     private const uint ShgfiSmallIcon = 0x000000001;
     private const uint ShgfiUseFileAttributes = 0x000000010;
     private const uint FileAttributeDirectory = 0x00000010;
+    private const uint FileAttributeNormal = 0x00000080;
 
-    public static ImageSource? LoadIcon(string folderPath, string? customIconPath)
+    public static ImageSource? LoadIcon(string path, string? customIconPath)
     {
         if (!string.IsNullOrWhiteSpace(customIconPath) && File.Exists(customIconPath))
         {
@@ -27,7 +28,7 @@ public static class IconHelper
             }
         }
 
-        return LoadShellIcon(folderPath);
+        return LoadShellIcon(path);
     }
 
     private static ImageSource? LoadCustomIcon(string path)
@@ -57,12 +58,13 @@ public static class IconHelper
         }
     }
 
-    private static ImageSource? LoadShellIcon(string folderPath)
+    private static ImageSource? LoadShellIcon(string path)
     {
+        var isDirectory = Directory.Exists(path);
         var info = new ShFileInfo();
         var result = SHGetFileInfo(
-            folderPath,
-            FileAttributeDirectory,
+            path,
+            isDirectory ? FileAttributeDirectory : FileAttributeNormal,
             ref info,
             (uint)Marshal.SizeOf<ShFileInfo>(),
             ShgfiIcon | ShgfiSmallIcon | ShgfiUseFileAttributes);

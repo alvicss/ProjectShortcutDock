@@ -11,7 +11,7 @@ internal static class SetupBootstrapper
     private const string AppName = "Project Shortcut Dock";
     private const string ExeName = "ProjectShortcutDock.exe";
     private const string UninstallExeName = "ProjectShortcutDock.Uninstall.exe";
-    private const string CurrentVersion = "0.1.4";
+    private const string CurrentVersion = "0.1.5";
     private const string PublisherName = "alvicss";
     private const string StartMenuFolderName = "Project Shortcut Dock";
     private const string StartWithWindowsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";

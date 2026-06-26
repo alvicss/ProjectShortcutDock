@@ -66,7 +66,7 @@
                                FontSize="15"
                                FontWeight="SemiBold" />
                     <TextBlock x:Name="SubtitleText"
-                               Text="Drop project folders here"
+                               Text="Drop files or folders here"
                                Foreground="{DynamicResource SubtleTextBrush}"
                                FontSize="11" />
                 </StackPanel>

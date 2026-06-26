@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         ["zh-TW"] = new Dictionary<string, string>
         {
             ["AppTitle"] = "專案捷徑",
-            ["Subtitle"] = "將專案資料夾拖放到這裡",
+            ["Subtitle"] = "將檔案或資料夾拖放到這裡",
             ["Settings"] = "設定",
             ["About"] = "關於",
             ["HideToTray"] = "隱藏到系統匣",
@@ -61,14 +61,14 @@ public partial class MainWindow : Window
             ["ChangeIcon"] = "變更圖示...",
             ["ResetIcon"] = "重設圖示",
             ["RemoveShortcut"] = "移除捷徑",
-            ["FolderMissing"] = "這個資料夾已不存在。",
+            ["FolderMissing"] = "這個項目已不存在。",
             ["ChooseIcon"] = "選擇圖示",
             ["IconFilter"] = "圖示或圖片檔案|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|所有檔案|*.*"
         },
         ["en"] = new Dictionary<string, string>
         {
             ["AppTitle"] = "Project Shortcuts",
-            ["Subtitle"] = "Drop project folders here",
+            ["Subtitle"] = "Drop files or folders here",
             ["Settings"] = "Settings",
             ["About"] = "About",
             ["HideToTray"] = "Hide to tray",
@@ -90,14 +90,14 @@ public partial class MainWindow : Window
             ["ChangeIcon"] = "Change icon...",
             ["ResetIcon"] = "Reset icon",
             ["RemoveShortcut"] = "Remove shortcut",
-            ["FolderMissing"] = "This folder no longer exists.",
+            ["FolderMissing"] = "This item no longer exists.",
             ["ChooseIcon"] = "Choose icon",
             ["IconFilter"] = "Icon or image files|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|All files|*.*"
         },
         ["ja"] = new Dictionary<string, string>
         {
             ["AppTitle"] = "プロジェクトショートカット",
-            ["Subtitle"] = "プロジェクトフォルダーをここにドロップ",
+            ["Subtitle"] = "ファイルまたはフォルダーをここにドロップ",
             ["Settings"] = "設定",
             ["About"] = "About",
             ["HideToTray"] = "トレイに隠す",
@@ -119,7 +119,7 @@ public partial class MainWindow : Window
             ["ChangeIcon"] = "アイコンを変更...",
             ["ResetIcon"] = "アイコンをリセット",
             ["RemoveShortcut"] = "ショートカットを削除",
-            ["FolderMissing"] = "このフォルダーは存在しません。",
+            ["FolderMissing"] = "この項目は存在しません。",
             ["ChooseIcon"] = "アイコンを選択",
             ["IconFilter"] = "アイコンまたは画像ファイル|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|すべてのファイル|*.*"
         }
@@ -176,7 +176,7 @@ public partial class MainWindow : Window
 
     private void LoadShortcuts()
     {
-        foreach (var item in _settings.Shortcuts.Where(x => Directory.Exists(x.Path)))
+        foreach (var item in _settings.Shortcuts.Where(x => ShortcutPathExists(x.Path)))
         {
             item.RefreshIcon();
             Shortcuts.Add(item);
@@ -265,11 +265,11 @@ public partial class MainWindow : Window
         return image;
     }
 
-    private void AddFolders(string[] paths)
+    private void AddShortcuts(string[] paths)
     {
-        foreach (var path in paths.Where(Directory.Exists))
+        foreach (var path in paths.Where(ShortcutPathExists))
         {
-            var normalizedPath = System.IO.Path.GetFullPath(path).TrimEnd(System.IO.Path.DirectorySeparatorChar);
+            var normalizedPath = NormalizeShortcutPath(path);
             if (Shortcuts.Any(x => string.Equals(x.Path, normalizedPath, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
@@ -278,12 +278,8 @@ public partial class MainWindow : Window
             var item = new ShortcutItem
             {
                 Path = normalizedPath,
-                Name = System.IO.Path.GetFileName(normalizedPath)
+                Name = GetShortcutName(normalizedPath)
             };
-            if (string.IsNullOrWhiteSpace(item.Name))
-            {
-                item.Name = normalizedPath;
-            }
             item.RefreshIcon();
             Shortcuts.Add(item);
         }
@@ -306,13 +302,13 @@ public partial class MainWindow : Window
     {
         if (ShortcutList.SelectedItem is ShortcutItem selected)
         {
-            OpenFolder(selected.Path);
+            OpenPath(selected.Path);
         }
     }
 
-    private void OpenFolder(string path)
+    private void OpenPath(string path)
     {
-        if (!Directory.Exists(path))
+        if (!ShortcutPathExists(path))
         {
             MessageBox.Show(T("FolderMissing"), T("AppTitle"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -323,6 +319,38 @@ public partial class MainWindow : Window
             FileName = path,
             UseShellExecute = true
         });
+    }
+
+    private static bool ShortcutPathExists(string path)
+    {
+        return Directory.Exists(path) || File.Exists(path);
+    }
+
+    private static string NormalizeShortcutPath(string path)
+    {
+        var fullPath = System.IO.Path.GetFullPath(path);
+        var rootPath = System.IO.Path.GetPathRoot(fullPath);
+        return Directory.Exists(fullPath) &&
+               System.IO.Path.EndsInDirectorySeparator(fullPath) &&
+               !string.Equals(fullPath, rootPath, StringComparison.OrdinalIgnoreCase)
+            ? fullPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar)
+            : fullPath;
+    }
+
+    private static string GetShortcutName(string path)
+    {
+        var name = System.IO.Path.GetFileName(path);
+        return string.IsNullOrWhiteSpace(name) ? path : name;
+    }
+
+    private static string? GetWorkingDirectory(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            return path;
+        }
+
+        return File.Exists(path) ? System.IO.Path.GetDirectoryName(path) : null;
     }
 
     private void SaveSettings()
@@ -548,7 +576,7 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] paths)
         {
-            AddFolders(paths);
+            AddShortcuts(paths);
         }
     }
 
@@ -700,7 +728,7 @@ public partial class MainWindow : Window
     {
         if (ItemFromSender(sender) is ShortcutItem item)
         {
-            OpenFolder(item.Path);
+            OpenPath(item.Path);
         }
     }
 
@@ -711,7 +739,7 @@ public partial class MainWindow : Window
             var parent = Directory.GetParent(item.Path)?.FullName;
             if (parent is not null)
             {
-                OpenFolder(parent);
+                OpenPath(parent);
             }
         }
     }
@@ -758,7 +786,14 @@ public partial class MainWindow : Window
 
     private void OpenTerminal(string path, string? command = null)
     {
-        if (!Directory.Exists(path))
+        if (!ShortcutPathExists(path))
+        {
+            MessageBox.Show(T("FolderMissing"), T("AppTitle"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var workingDirectory = GetWorkingDirectory(path);
+        if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
         {
             MessageBox.Show(T("FolderMissing"), T("AppTitle"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -766,7 +801,7 @@ public partial class MainWindow : Window
 
         var shell = _terminalShellOptions.FirstOrDefault(x => x.Code == NormalizeTerminalShell(_settings.TerminalShell))
             ?? _terminalShellOptions.First(x => x.Code == DefaultTerminalShell);
-        var startInfo = CreateTerminalStartInfo(shell, path, command);
+        var startInfo = CreateTerminalStartInfo(shell, workingDirectory, command);
         Process.Start(startInfo);
     }
 
