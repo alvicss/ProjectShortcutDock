@@ -13,7 +13,6 @@ using System.Windows.Interop;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Forms = System.Windows.Forms;
 
 namespace ProjectShortcutDock;
 
@@ -79,6 +78,8 @@ public partial class MainWindow : Window
     public ObservableCollection<ShortcutItem> Shortcuts => _group.Shortcuts;
 
     internal string GetText(string key) => UiText.Get(_settings.Language, key);
+
+    internal string CurrentLanguage => _settings.Language;
 
     public void PrepareForClose()
     {
@@ -188,11 +189,16 @@ public partial class MainWindow : Window
     {
         var theme = ThemePalette.For(_settings.Theme);
         var accent = _group.GetAccentColor();
+        var accentWeight = CardColorPalette.GetAlphaWeight(accent);
         ShellBorder.BorderBrush = CreateBrush(accent);
-        ShellBorder.Background = CreateBrush(CardColorPalette.Blend(theme.Window, accent, 0.10));
-        SettingsPanel.BorderBrush = CreateBrush(CardColorPalette.Blend(theme.Border, accent, 0.30));
-        SettingsPanel.Background = CreateBrush(CardColorPalette.Blend(theme.Panel, accent, 0.06));
-        ColorButton.Foreground = CreateBrush(accent);
+        ShellBorder.Background = CreateBrush(CardColorPalette.Blend(theme.Window, CardColorPalette.WithoutAlpha(accent), 0.10 * accentWeight));
+        SettingsPanel.BorderBrush = CreateBrush(CardColorPalette.Blend(theme.Border, CardColorPalette.WithoutAlpha(accent), 0.30 * accentWeight));
+        SettingsPanel.Background = CreateBrush(CardColorPalette.Blend(theme.Panel, CardColorPalette.WithoutAlpha(accent), 0.06 * accentWeight));
+        var visibleAccent = CardColorPalette.WithoutAlpha(accent);
+        ColorIndicatorFill.Fill = CreateBrush(accent);
+        ColorIndicatorFill.Stroke = CreateBrush(visibleAccent);
+        ColorIndicatorOutline.Stroke = CreateBrush(visibleAccent);
+        ColorIndicatorOutline.Visibility = accent.A < 30 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyWindowMode()
@@ -657,7 +663,7 @@ public partial class MainWindow : Window
             }
         }
 
-        if (e.PropertyName is nameof(ShortcutGroup.ColorR) or nameof(ShortcutGroup.ColorG) or nameof(ShortcutGroup.ColorB))
+        if (e.PropertyName is nameof(ShortcutGroup.ColorA) or nameof(ShortcutGroup.ColorR) or nameof(ShortcutGroup.ColorG) or nameof(ShortcutGroup.ColorB))
         {
             ApplyGroupAccent();
             if (!_isLoading)
@@ -692,16 +698,10 @@ public partial class MainWindow : Window
 
     private void ColorButton_Click(object sender, RoutedEventArgs e)
     {
-        using var dialog = new Forms.ColorDialog
+        var dialog = new ColorPickerWindow(this, _group.GetAccentColor());
+        if (dialog.ShowDialog() != false)
         {
-            AllowFullOpen = true,
-            FullOpen = true,
-            Color = CardColorPalette.ToDrawingColor(_group.GetAccentColor())
-        };
-
-        if (dialog.ShowDialog() == Forms.DialogResult.OK)
-        {
-            _group.SetAccentColor(CardColorPalette.FromDrawingColor(dialog.Color));
+            _group.SetAccentColor(dialog.SelectedColor);
         }
     }
 
@@ -779,7 +779,7 @@ public partial class MainWindow : Window
 
     private void Hide_Click(object sender, RoutedEventArgs e)
     {
-        _manager.HideAllWindows();
+        _manager.HideWindow(this);
     }
 
     private void Window_MouseEnter(object sender, MouseEventArgs e) => Opacity = 1;
@@ -815,7 +815,7 @@ public partial class MainWindow : Window
         }
 
         e.Cancel = true;
-        _manager.HideAllWindows();
+        _manager.HideWindow(this);
     }
 
     private void Window_DragEnter(object sender, DragEventArgs e)

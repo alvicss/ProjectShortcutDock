@@ -10,6 +10,7 @@ namespace ProjectShortcutDock;
 public sealed class ShortcutGroup : INotifyPropertyChanged
 {
     private string _name = "";
+    private byte _colorA = CardColorPalette.DefaultSkyColor.A;
     private byte _colorR = CardColorPalette.DefaultSkyColor.R;
     private byte _colorG = CardColorPalette.DefaultSkyColor.G;
     private byte _colorB = CardColorPalette.DefaultSkyColor.B;
@@ -42,6 +43,21 @@ public sealed class ShortcutGroup : INotifyPropertyChanged
     public double Width { get; set; } = 360;
 
     public double Height { get; set; } = 260;
+
+    public byte ColorA
+    {
+        get => _colorA;
+        set
+        {
+            if (_colorA == value)
+            {
+                return;
+            }
+
+            _colorA = value;
+            OnPropertyChanged();
+        }
+    }
 
     public byte ColorR
     {
@@ -113,10 +129,11 @@ public sealed class ShortcutGroup : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public Color GetAccentColor() => Color.FromRgb(ColorR, ColorG, ColorB);
+    public Color GetAccentColor() => Color.FromArgb(ColorA, ColorR, ColorG, ColorB);
 
     public void SetAccentColor(Color color)
     {
+        ColorA = color.A;
         ColorR = color.R;
         ColorG = color.G;
         ColorB = color.B;

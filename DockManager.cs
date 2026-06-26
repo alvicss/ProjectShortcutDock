@@ -89,6 +89,14 @@ public sealed class DockManager : IDisposable
         }
     }
 
+    public void HideWindow(MainWindow window)
+    {
+        if (_windows.Contains(window))
+        {
+            window.Hide();
+        }
+    }
+
     public void ShowAllWindows()
     {
         foreach (var window in _windows.ToList())
@@ -235,8 +243,8 @@ public sealed class DockManager : IDisposable
 
         _trayIcon.ContextMenuStrip?.Dispose();
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add(UiText.Get(_settings.Language, "Show"), null, (_, _) => ShowAllWindows());
-        menu.Items.Add(UiText.Get(_settings.Language, "Hide"), null, (_, _) => HideAllWindows());
+        menu.Items.Add(UiText.Get(_settings.Language, "ShowAll"), null, (_, _) => ShowAllWindows());
+        menu.Items.Add(UiText.Get(_settings.Language, "HideAll"), null, (_, _) => HideAllWindows());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(UiText.Get(_settings.Language, "Exit"), null, (_, _) => ExitApplication());
         _trayIcon.ContextMenuStrip = menu;

@@ -1,18 +1,20 @@
+using System;
 using System.Windows.Media;
 
 namespace ProjectShortcutDock;
 
 public static class CardColorPalette
 {
-    public static readonly Color DefaultSkyColor = Color.FromRgb(14, 165, 233);
+    public static readonly Color DefaultSkyColor = Color.FromArgb(255, 14, 165, 233);
 
-    public static Color FromDrawingColor(System.Drawing.Color color) => Color.FromRgb(color.R, color.G, color.B);
+    public static Color WithoutAlpha(Color color) => Color.FromRgb(color.R, color.G, color.B);
 
-    public static System.Drawing.Color ToDrawingColor(Color color) => System.Drawing.Color.FromArgb(color.R, color.G, color.B);
+    public static double GetAlphaWeight(Color color) => color.A / 255d;
 
     public static Color CreateTintBackground(Color accentColor)
     {
-        return Color.FromArgb(34, accentColor.R, accentColor.G, accentColor.B);
+        var alpha = (byte)Math.Clamp(accentColor.A / 4, 0, 255);
+        return Color.FromArgb(alpha, accentColor.R, accentColor.G, accentColor.B);
     }
 
     public static Color Blend(Color baseColor, Color accentColor, double accentWeight)

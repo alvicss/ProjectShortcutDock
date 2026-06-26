@@ -95,11 +95,6 @@
                              TextChanged="GroupNameBox_TextChanged"
                              KeyDown="GroupNameBox_KeyDown"
                              LostFocus="GroupNameBox_LostFocus" />
-                    <TextBlock x:Name="SubtitleText"
-                               Margin="0,1,0,0"
-                               Foreground="{DynamicResource SubtleTextBrush}"
-                               FontSize="11"
-                               Text="Drop files or folders here" />
                 </StackPanel>
 
                 <Button Grid.Column="1"
@@ -128,10 +123,22 @@
                 <Button Grid.Column="4"
                         x:Name="ColorButton"
                         Style="{StaticResource IconButton}"
-                        FontFamily="Segoe UI Symbol"
-                        FontSize="16"
-                        Content="●"
-                        Click="ColorButton_Click" />
+                        Click="ColorButton_Click">
+                    <Viewbox Width="14"
+                             Height="14">
+                        <Grid Width="14"
+                              Height="14">
+                            <Ellipse x:Name="ColorIndicatorFill"
+                                     StrokeThickness="0.8" />
+                            <Ellipse x:Name="ColorIndicatorOutline"
+                                     Fill="Transparent"
+                                     StrokeThickness="1.2"
+                                     Visibility="Collapsed">
+                                <Ellipse.StrokeDashArray>2,1.4</Ellipse.StrokeDashArray>
+                            </Ellipse>
+                        </Grid>
+                    </Viewbox>
+                </Button>
                 <Button Grid.Column="5"
                         x:Name="SettingsButton"
                         Style="{StaticResource IconButton}"
@@ -235,51 +242,62 @@
                 </Grid>
             </Border>
 
-            <ListBox x:Name="ShortcutList"
-                     Grid.Row="2"
-                     Margin="0,4,0,0"
-                     ItemsSource="{Binding Shortcuts}"
-                     AllowDrop="True"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     ItemContainerStyle="{StaticResource ShortcutListItemStyle}"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                     ContextMenuOpening="ShortcutList_ContextMenuOpening"
-                     KeyDown="ShortcutList_KeyDown"
-                     MouseDoubleClick="ShortcutList_MouseDoubleClick"
-                     PreviewMouseRightButtonDown="ShortcutList_PreviewMouseRightButtonDown">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Border Height="38"
-                                Padding="8,4"
-                                CornerRadius="6"
-                                Background="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=Background}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="28" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Image Width="20"
-                                       Height="20"
-                                       Source="{Binding IconSource}"
-                                       Stretch="Uniform" />
-                                <StackPanel Grid.Column="1"
-                                            VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}"
-                                               Foreground="{DynamicResource TextBrush}"
-                                               FontSize="13"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding Path}"
-                                               Foreground="{DynamicResource SubtleTextBrush}"
-                                               FontSize="10"
-                                               TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <Grid Grid.Row="2"
+                  Margin="0,4,0,0">
+                <ListBox x:Name="ShortcutList"
+                         ItemsSource="{Binding Shortcuts}"
+                         AllowDrop="True"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ItemContainerStyle="{StaticResource ShortcutListItemStyle}"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ContextMenuOpening="ShortcutList_ContextMenuOpening"
+                         KeyDown="ShortcutList_KeyDown"
+                         MouseDoubleClick="ShortcutList_MouseDoubleClick"
+                         PreviewMouseRightButtonDown="ShortcutList_PreviewMouseRightButtonDown">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Height="38"
+                                    Padding="8,4"
+                                    CornerRadius="6"
+                                    Background="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=Background}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="28" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Width="20"
+                                           Height="20"
+                                           Source="{Binding IconSource}"
+                                           Stretch="Uniform" />
+                                    <StackPanel Grid.Column="1"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   FontSize="13"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Path}"
+                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                   FontSize="10"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <TextBlock x:Name="SubtitleText"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           IsHitTestVisible="False"
+                           Foreground="{DynamicResource SubtleTextBrush}"
+                           FontSize="12"
+                           Text="Drop files or folders here" />
+            </Grid>
         </Grid>
     </Border>
 </Window>
