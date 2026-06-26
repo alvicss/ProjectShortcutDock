@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
@@ -9,11 +10,15 @@ namespace ProjectShortcutDock;
 public sealed class ShortcutGroup : INotifyPropertyChanged
 {
     private string _name = "";
-    private string _colorKey = CardColorPalette.DefaultKey;
-    private bool _isSelected;
-    private Brush _cardBorderBrush = CreateBrush(CardColorPalette.Resolve(CardColorPalette.DefaultKey).AccentColor);
-    private Brush _cardBackgroundBrush = CreateBrush(CardColorPalette.Resolve(CardColorPalette.DefaultKey).BackgroundColor);
-    private Brush _cardAccentBrush = CreateBrush(CardColorPalette.Resolve(CardColorPalette.DefaultKey).AccentColor);
+    private byte _colorR = CardColorPalette.DefaultSkyColor.R;
+    private byte _colorG = CardColorPalette.DefaultSkyColor.G;
+    private byte _colorB = CardColorPalette.DefaultSkyColor.B;
+    private ObservableCollection<ShortcutItem> _shortcuts = new();
+
+    public ShortcutGroup()
+    {
+        _shortcuts.CollectionChanged += Shortcuts_CollectionChanged;
+    }
 
     public string Name
     {
@@ -30,94 +35,108 @@ public sealed class ShortcutGroup : INotifyPropertyChanged
         }
     }
 
-    public string ColorKey
+    public double? Left { get; set; }
+
+    public double? Top { get; set; }
+
+    public double Width { get; set; } = 360;
+
+    public double Height { get; set; } = 260;
+
+    public byte ColorR
     {
-        get => _colorKey;
+        get => _colorR;
         set
         {
-            var option = CardColorPalette.Resolve(value);
-            if (_colorKey == option.Key)
-            {
-                RefreshAppearance();
-                return;
-            }
-
-            _colorKey = option.Key;
-            ApplyColor(option);
-            OnPropertyChanged();
-        }
-    }
-
-    public ObservableCollection<ShortcutItem> Shortcuts { get; set; } = new();
-
-    [JsonIgnore]
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
-        {
-            if (_isSelected == value)
+            if (_colorR == value)
             {
                 return;
             }
 
-            _isSelected = value;
+            _colorR = value;
             OnPropertyChanged();
         }
     }
 
-    [JsonIgnore]
-    public Brush CardBorderBrush
+    public byte ColorG
     {
-        get => _cardBorderBrush;
-        private set
+        get => _colorG;
+        set
         {
-            _cardBorderBrush = value;
+            if (_colorG == value)
+            {
+                return;
+            }
+
+            _colorG = value;
             OnPropertyChanged();
         }
     }
 
-    [JsonIgnore]
-    public Brush CardBackgroundBrush
+    public byte ColorB
     {
-        get => _cardBackgroundBrush;
-        private set
+        get => _colorB;
+        set
         {
-            _cardBackgroundBrush = value;
+            if (_colorB == value)
+            {
+                return;
+            }
+
+            _colorB = value;
             OnPropertyChanged();
         }
     }
 
-    [JsonIgnore]
-    public Brush CardAccentBrush
+    public string ColorKey { get; set; } = "";
+
+    public ObservableCollection<ShortcutItem> Shortcuts
     {
-        get => _cardAccentBrush;
-        private set
+        get => _shortcuts;
+        set
         {
-            _cardAccentBrush = value;
+            if (ReferenceEquals(_shortcuts, value))
+            {
+                return;
+            }
+
+            _shortcuts.CollectionChanged -= Shortcuts_CollectionChanged;
+            _shortcuts = value ?? new ObservableCollection<ShortcutItem>();
+            _shortcuts.CollectionChanged += Shortcuts_CollectionChanged;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsEmpty));
         }
     }
+
+    [JsonIgnore]
+    public bool IsEmpty => Shortcuts.Count == 0;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public void RefreshAppearance()
+    public Color GetAccentColor() => Color.FromRgb(ColorR, ColorG, ColorB);
+
+    public void SetAccentColor(Color color)
     {
-        ApplyColor(CardColorPalette.Resolve(ColorKey));
+        ColorR = color.R;
+        ColorG = color.G;
+        ColorB = color.B;
+        ColorKey = "";
     }
 
-    private void ApplyColor(CardColorOption option)
+    public void MigrateLegacyColorIfNeeded()
     {
-        CardBorderBrush = CreateBrush(option.AccentColor);
-        CardBackgroundBrush = CreateBrush(option.BackgroundColor);
-        CardAccentBrush = CreateBrush(option.AccentColor);
+        if (string.IsNullOrWhiteSpace(ColorKey))
+        {
+            return;
+        }
+
+        SetAccentColor(CardColorPalette.ResolveLegacyColor(ColorKey));
+        ColorKey = "";
     }
 
-    private static Brush CreateBrush(Color color)
+    private void Shortcuts_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
+        OnPropertyChanged(nameof(IsEmpty));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

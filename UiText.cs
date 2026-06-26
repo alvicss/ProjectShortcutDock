@@ -1,0 +1,136 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ProjectShortcutDock;
+
+public static class UiText
+{
+    public const string DefaultLanguage = "en";
+
+    private static readonly Dictionary<string, Dictionary<string, string>> Texts = new()
+    {
+        ["zh-TW"] = new Dictionary<string, string>
+        {
+            ["AppTitle"] = "專案捷徑",
+            ["EmptyHint"] = "將檔案或資料夾拖放到這裡",
+            ["AddWindow"] = "新增視窗",
+            ["RemoveWindow"] = "刪除視窗",
+            ["RenameWindow"] = "重新命名",
+            ["RemoveWindowConfirm"] = "要刪除這個群組視窗與其中記憶的捷徑嗎？這不會刪除原本的檔案或資料夾。",
+            ["ChangeColor"] = "變更顏色",
+            ["GroupDefaultName"] = "卡片",
+            ["Settings"] = "設定",
+            ["About"] = "關於",
+            ["HideToTray"] = "隱藏到系統匣",
+            ["Style"] = "樣式",
+            ["WindowMode"] = "視窗模式",
+            ["Language"] = "語系",
+            ["TerminalShell"] = "Shell",
+            ["StartWithWindows"] = "隨 Windows 啟動",
+            ["Show"] = "顯示",
+            ["Hide"] = "隱藏",
+            ["Exit"] = "結束",
+            ["Open"] = "開啟",
+            ["OpenParent"] = "開啟上層資料夾",
+            ["CopyPath"] = "複製路徑",
+            ["OpenTerminal"] = "在終端機中開啟",
+            ["OpenCodex"] = "用 Codex 開啟",
+            ["OpenClaude"] = "用 Claude 開啟",
+            ["OpenAgy"] = "用 Antigravity 開啟",
+            ["ChangeIcon"] = "變更圖示...",
+            ["ResetIcon"] = "重設圖示",
+            ["RemoveShortcut"] = "移除捷徑",
+            ["ItemMissing"] = "這個項目已不存在。",
+            ["ChooseIcon"] = "選擇圖示",
+            ["IconFilter"] = "圖示或圖片檔案|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|所有檔案|*.*"
+        },
+        ["en"] = new Dictionary<string, string>
+        {
+            ["AppTitle"] = "Project Shortcuts",
+            ["EmptyHint"] = "Drop files or folders here",
+            ["AddWindow"] = "Add window",
+            ["RemoveWindow"] = "Remove window",
+            ["RenameWindow"] = "Rename",
+            ["RemoveWindowConfirm"] = "Delete this group window and its remembered shortcuts? This will not delete the original files or folders.",
+            ["ChangeColor"] = "Change color",
+            ["GroupDefaultName"] = "Card",
+            ["Settings"] = "Settings",
+            ["About"] = "About",
+            ["HideToTray"] = "Hide to tray",
+            ["Style"] = "Style",
+            ["WindowMode"] = "Window mode",
+            ["Language"] = "Language",
+            ["TerminalShell"] = "Shell",
+            ["StartWithWindows"] = "Start with Windows",
+            ["Show"] = "Show",
+            ["Hide"] = "Hide",
+            ["Exit"] = "Exit",
+            ["Open"] = "Open",
+            ["OpenParent"] = "Open parent folder",
+            ["CopyPath"] = "Copy path",
+            ["OpenTerminal"] = "Open in Terminal",
+            ["OpenCodex"] = "Open with Codex",
+            ["OpenClaude"] = "Open with Claude",
+            ["OpenAgy"] = "Open with Antigravity",
+            ["ChangeIcon"] = "Change icon...",
+            ["ResetIcon"] = "Reset icon",
+            ["RemoveShortcut"] = "Remove shortcut",
+            ["ItemMissing"] = "This item no longer exists.",
+            ["ChooseIcon"] = "Choose icon",
+            ["IconFilter"] = "Icon or image files|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|All files|*.*"
+        },
+        ["ja"] = new Dictionary<string, string>
+        {
+            ["AppTitle"] = "プロジェクトショートカット",
+            ["EmptyHint"] = "ファイルまたはフォルダーをここにドロップ",
+            ["AddWindow"] = "ウィンドウ追加",
+            ["RemoveWindow"] = "ウィンドウ削除",
+            ["RenameWindow"] = "名前変更",
+            ["RemoveWindowConfirm"] = "このグループウィンドウと記憶されたショートカットを削除しますか？元のファイルやフォルダーは削除されません。",
+            ["ChangeColor"] = "色を変更",
+            ["GroupDefaultName"] = "カード",
+            ["Settings"] = "設定",
+            ["About"] = "About",
+            ["HideToTray"] = "トレイに隠す",
+            ["Style"] = "スタイル",
+            ["WindowMode"] = "ウィンドウモード",
+            ["Language"] = "言語",
+            ["TerminalShell"] = "Shell",
+            ["StartWithWindows"] = "Windows 起動時に開始",
+            ["Show"] = "表示",
+            ["Hide"] = "非表示",
+            ["Exit"] = "終了",
+            ["Open"] = "開く",
+            ["OpenParent"] = "親フォルダーを開く",
+            ["CopyPath"] = "パスをコピー",
+            ["OpenTerminal"] = "ターミナルで開く",
+            ["OpenCodex"] = "Codex で開く",
+            ["OpenClaude"] = "Claude で開く",
+            ["OpenAgy"] = "Antigravity で開く",
+            ["ChangeIcon"] = "アイコンを変更...",
+            ["ResetIcon"] = "アイコンをリセット",
+            ["RemoveShortcut"] = "ショートカットを削除",
+            ["ItemMissing"] = "この項目は存在しません。",
+            ["ChooseIcon"] = "アイコンを選択",
+            ["IconFilter"] = "アイコンまたは画像ファイル|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|すべてのファイル|*.*"
+        }
+    };
+
+    private static readonly string[] SupportedLanguages = { "zh-TW", "en", "ja" };
+
+    public static string NormalizeLanguage(string? language)
+    {
+        return SupportedLanguages.Any(x => string.Equals(x, language, StringComparison.OrdinalIgnoreCase))
+            ? language!
+            : DefaultLanguage;
+    }
+
+    public static string Get(string? language, string key)
+    {
+        var normalizedLanguage = NormalizeLanguage(language);
+        return Texts[normalizedLanguage].TryGetValue(key, out var text)
+            ? text
+            : Texts[DefaultLanguage][key];
+    }
+}

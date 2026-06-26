@@ -15,6 +15,7 @@ settings.json
 last-error.log
 NuGet.Config
 README.private.md
+docs/TECHNICAL_ARCHITECTURE.md
 tools/generate-project-icon.ps1
 *.user
 *.userprefs

@@ -7,19 +7,31 @@ namespace ProjectShortcutDock;
 
 public partial class App : Application
 {
+    private DockManager? _dockManager;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         ClearPreviousErrorLog();
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             LogException(args.ExceptionObject as Exception);
         DispatcherUnhandledException += App_DispatcherUnhandledException;
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
+
+        _dockManager = new DockManager(this);
+        _dockManager.Initialize();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _dockManager?.Dispose();
+        base.OnExit(e);
     }
 
     private static void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         LogException(e.Exception);
-        MessageBox.Show(e.Exception.Message, "Project Shortcuts startup error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(e.Exception.Message, $"{UiText.Get(UiText.DefaultLanguage, "AppTitle")} startup error", MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
         Current.Shutdown(1);
     }
