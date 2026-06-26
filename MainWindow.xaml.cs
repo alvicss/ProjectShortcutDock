@@ -17,7 +17,7 @@ using Forms = System.Windows.Forms;
 
 namespace ProjectShortcutDock;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private const string DesktopWindowMode = "Desktop";
     private const string TopmostWindowMode = "Topmost";
@@ -40,6 +40,18 @@ public partial class MainWindow : Window
         {
             ["AppTitle"] = "專案捷徑",
             ["Subtitle"] = "將檔案或資料夾拖放到這裡",
+            ["CardsHint"] = "先選取卡片再拖曳，或直接拖到指定卡片做分群",
+            ["AddCard"] = "新增卡片",
+            ["DeleteCard"] = "刪除卡片",
+            ["DeleteCardConfirm"] = "要刪除這張卡片與其中記憶的捷徑嗎？這不會刪除原本的檔案或資料夾。",
+            ["CardColor"] = "卡片顏色",
+            ["CardDefaultName"] = "卡片",
+            ["CardColorSlate"] = "石墨灰",
+            ["CardColorSky"] = "天空藍",
+            ["CardColorEmerald"] = "翠綠",
+            ["CardColorAmber"] = "琥珀橙",
+            ["CardColorRose"] = "玫瑰紅",
+            ["CardColorViolet"] = "紫羅蘭",
             ["Settings"] = "設定",
             ["About"] = "關於",
             ["HideToTray"] = "隱藏到系統匣",
@@ -69,6 +81,18 @@ public partial class MainWindow : Window
         {
             ["AppTitle"] = "Project Shortcuts",
             ["Subtitle"] = "Drop files or folders here",
+            ["CardsHint"] = "Select a card first, or drop directly onto a card to group shortcuts",
+            ["AddCard"] = "Add Card",
+            ["DeleteCard"] = "Delete card",
+            ["DeleteCardConfirm"] = "Delete this card and its remembered shortcuts? This will not delete the original files or folders.",
+            ["CardColor"] = "Card color",
+            ["CardDefaultName"] = "Card",
+            ["CardColorSlate"] = "Slate",
+            ["CardColorSky"] = "Sky",
+            ["CardColorEmerald"] = "Emerald",
+            ["CardColorAmber"] = "Amber",
+            ["CardColorRose"] = "Rose",
+            ["CardColorViolet"] = "Violet",
             ["Settings"] = "Settings",
             ["About"] = "About",
             ["HideToTray"] = "Hide to tray",
@@ -98,6 +122,18 @@ public partial class MainWindow : Window
         {
             ["AppTitle"] = "プロジェクトショートカット",
             ["Subtitle"] = "ファイルまたはフォルダーをここにドロップ",
+            ["CardsHint"] = "先にカードを選ぶか、目的のカードへ直接ドロップしてグループ化します",
+            ["AddCard"] = "カード追加",
+            ["DeleteCard"] = "カードを削除",
+            ["DeleteCardConfirm"] = "このカードと記憶されたショートカットを削除しますか？元のファイルやフォルダーは削除されません。",
+            ["CardColor"] = "カード色",
+            ["CardDefaultName"] = "カード",
+            ["CardColorSlate"] = "スレート",
+            ["CardColorSky"] = "スカイ",
+            ["CardColorEmerald"] = "エメラルド",
+            ["CardColorAmber"] = "アンバー",
+            ["CardColorRose"] = "ローズ",
+            ["CardColorViolet"] = "バイオレット",
             ["Settings"] = "設定",
             ["About"] = "About",
             ["HideToTray"] = "トレイに隠す",
@@ -131,8 +167,17 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _isLoading = true;
     private IntPtr _windowHandle;
+    private ShortcutGroup? _selectedGroup;
 
-    public ObservableCollection<ShortcutItem> Shortcuts { get; } = new();
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public ObservableCollection<ShortcutGroup> Groups { get; } = new();
+
+    public IReadOnlyList<CardColorOption> GroupColorOptions { get; private set; } = Array.Empty<CardColorOption>();
+
+    public string CardColorLabelText => T("CardColor");
+
+    public string DeleteCardToolTipText => T("DeleteCard");
 
     public MainWindow()
     {
@@ -143,11 +188,10 @@ public partial class MainWindow : Window
         _terminalShellOptions = DetectTerminalShellOptions();
         _settings.TerminalShell = NormalizeTerminalShell(_settings.TerminalShell);
         DataContext = this;
-        ShortcutList.ContextMenu = CreateShortcutContextMenu();
 
         ConfigureSettingsControls();
         ApplyLanguage();
-        LoadShortcuts();
+        LoadGroups();
         ApplySavedWindowPosition();
         ApplyTheme(_settings.Theme);
         ApplyWindowMode();
@@ -174,13 +218,155 @@ public partial class MainWindow : Window
         StartWithWindowsBox.IsChecked = _settings.StartWithWindows;
     }
 
-    private void LoadShortcuts()
+    private void LoadGroups()
     {
-        foreach (var item in _settings.Shortcuts.Where(x => ShortcutPathExists(x.Path)))
+        var storedGroups = _settings.Groups.Count > 0
+            ? _settings.Groups
+            : CreateLegacyGroups();
+
+        if (storedGroups.Count == 0)
+        {
+            storedGroups.Add(CreateNewGroup());
+        }
+
+        Groups.Clear();
+
+        for (var index = 0; index < storedGroups.Count; index++)
+        {
+            var group = storedGroups[index];
+            PrepareGroup(group, index + 1);
+            Groups.Add(group);
+        }
+
+        SetSelectedGroup(Groups.FirstOrDefault());
+    }
+
+    private List<ShortcutGroup> CreateLegacyGroups()
+    {
+        if (_settings.Shortcuts.Count == 0)
+        {
+            return new List<ShortcutGroup>();
+        }
+
+        return new List<ShortcutGroup>
+        {
+            new()
+            {
+                Name = CreateDefaultGroupName(1),
+                ColorKey = CardColorPalette.DefaultKey,
+                Shortcuts = new ObservableCollection<ShortcutItem>(_settings.Shortcuts)
+            }
+        };
+    }
+
+    private void PrepareGroup(ShortcutGroup group, int fallbackIndex)
+    {
+        group.Name = string.IsNullOrWhiteSpace(group.Name) ? CreateDefaultGroupName(fallbackIndex) : group.Name;
+        group.ColorKey = group.ColorKey;
+        group.Shortcuts ??= new ObservableCollection<ShortcutItem>();
+        group.Shortcuts = new ObservableCollection<ShortcutItem>(
+            group.Shortcuts.Where(x => ShortcutPathExists(x.Path)));
+
+        foreach (var item in group.Shortcuts)
         {
             item.RefreshIcon();
-            Shortcuts.Add(item);
         }
+
+        group.IsSelected = false;
+        group.RefreshAppearance();
+    }
+
+    private ShortcutGroup CreateNewGroup()
+    {
+        var group = new ShortcutGroup
+        {
+            Name = CreateDefaultGroupName(Groups.Count + 1),
+            ColorKey = CardColorPalette.DefaultKey
+        };
+        group.RefreshAppearance();
+        return group;
+    }
+
+    private string CreateDefaultGroupName(int index)
+    {
+        return $"{T("CardDefaultName")} {index}";
+    }
+
+    private void AddGroup()
+    {
+        var group = CreateNewGroup();
+        Groups.Add(group);
+        SetSelectedGroup(group);
+        SaveSettings();
+    }
+
+    private void RemoveGroup(ShortcutGroup group)
+    {
+        var result = MessageBox.Show(
+            T("DeleteCardConfirm"),
+            T("DeleteCard"),
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var removedIndex = Groups.IndexOf(group);
+        Groups.Remove(group);
+
+        if (Groups.Count == 0)
+        {
+            var newGroup = CreateNewGroup();
+            Groups.Add(newGroup);
+            SetSelectedGroup(newGroup);
+        }
+        else
+        {
+            var nextIndex = Math.Clamp(removedIndex, 0, Groups.Count - 1);
+            SetSelectedGroup(Groups[nextIndex]);
+        }
+
+        SaveSettings();
+    }
+
+    private void SetSelectedGroup(ShortcutGroup? group)
+    {
+        if (ReferenceEquals(_selectedGroup, group))
+        {
+            return;
+        }
+
+        if (_selectedGroup is not null)
+        {
+            _selectedGroup.IsSelected = false;
+        }
+
+        _selectedGroup = group;
+
+        if (_selectedGroup is not null)
+        {
+            _selectedGroup.IsSelected = true;
+        }
+    }
+
+    private ShortcutGroup GetOrCreateDropTargetGroup()
+    {
+        if (_selectedGroup is not null)
+        {
+            return _selectedGroup;
+        }
+
+        if (Groups.Count > 0)
+        {
+            SetSelectedGroup(Groups[0]);
+            return Groups[0];
+        }
+
+        var group = CreateNewGroup();
+        Groups.Add(group);
+        SetSelectedGroup(group);
+        return group;
     }
 
     private Forms.NotifyIcon CreateTrayIcon()
@@ -265,12 +451,13 @@ public partial class MainWindow : Window
         return image;
     }
 
-    private void AddShortcuts(string[] paths)
+    private void AddShortcutsToGroup(ShortcutGroup group, string[] paths)
     {
+        var added = false;
         foreach (var path in paths.Where(ShortcutPathExists))
         {
             var normalizedPath = NormalizeShortcutPath(path);
-            if (Shortcuts.Any(x => string.Equals(x.Path, normalizedPath, StringComparison.OrdinalIgnoreCase)))
+            if (group.Shortcuts.Any(x => string.Equals(x.Path, normalizedPath, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -281,29 +468,31 @@ public partial class MainWindow : Window
                 Name = GetShortcutName(normalizedPath)
             };
             item.RefreshIcon();
-            Shortcuts.Add(item);
+            group.Shortcuts.Add(item);
+            added = true;
         }
 
-        SaveSettings();
+        if (added)
+        {
+            SaveSettings();
+        }
     }
 
-    private void RemoveSelectedShortcut()
+    private void RemoveShortcut(ShortcutItem item)
     {
-        if (ShortcutList.SelectedItem is not ShortcutItem selected)
+        var group = FindGroupForShortcut(item);
+        if (group is null)
         {
             return;
         }
 
-        Shortcuts.Remove(selected);
+        group.Shortcuts.Remove(item);
         SaveSettings();
     }
 
-    private void OpenSelectedShortcut()
+    private ShortcutGroup? FindGroupForShortcut(ShortcutItem item)
     {
-        if (ShortcutList.SelectedItem is ShortcutItem selected)
-        {
-            OpenPath(selected.Path);
-        }
+        return Groups.FirstOrDefault(group => group.Shortcuts.Contains(item));
     }
 
     private void OpenPath(string path)
@@ -353,14 +542,20 @@ public partial class MainWindow : Window
         return File.Exists(path) ? System.IO.Path.GetDirectoryName(path) : null;
     }
 
-    private void SaveSettings()
+    private void SaveSettings(bool normalizeGroupNames = false)
     {
         if (_isLoading)
         {
             return;
         }
 
-        _settings.Shortcuts = Shortcuts.ToList();
+        if (normalizeGroupNames)
+        {
+            NormalizeBlankGroupNames();
+        }
+
+        _settings.Groups = Groups.ToList();
+        _settings.Shortcuts = new List<ShortcutItem>();
         _settings.Theme = ThemeBox.SelectedItem?.ToString() ?? _settings.Theme;
         _settings.WindowMode = WindowModeBox.SelectedItem?.ToString() ?? _settings.WindowMode;
         _settings.Language = NormalizeLanguage(LanguageBox.SelectedValue?.ToString() ?? _settings.Language);
@@ -371,6 +566,17 @@ public partial class MainWindow : Window
         _settings.Width = Width;
         _settings.Height = Height;
         _settings.Save();
+    }
+
+    private void NormalizeBlankGroupNames()
+    {
+        for (var index = 0; index < Groups.Count; index++)
+        {
+            if (string.IsNullOrWhiteSpace(Groups[index].Name))
+            {
+                Groups[index].Name = CreateDefaultGroupName(index + 1);
+            }
+        }
     }
 
     private void ApplySavedWindowPosition()
@@ -450,6 +656,8 @@ public partial class MainWindow : Window
         Title = T("AppTitle");
         TitleText.Text = T("AppTitle");
         SubtitleText.Text = T("Subtitle");
+        CardsHintText.Text = T("CardsHint");
+        AddCardButton.Content = T("AddCard");
         SettingsButton.ToolTip = T("Settings");
         AboutButton.ToolTip = T("About");
         HideButton.ToolTip = T("HideToTray");
@@ -458,7 +666,10 @@ public partial class MainWindow : Window
         LanguageLabel.Text = T("Language");
         TerminalShellLabel.Text = T("TerminalShell");
         StartWithWindowsBox.Content = T("StartWithWindows");
-        ShortcutList.ContextMenu = CreateShortcutContextMenu();
+        GroupColorOptions = CardColorPalette.Build(T);
+        NotifyPropertyChanged(nameof(GroupColorOptions));
+        NotifyPropertyChanged(nameof(CardColorLabelText));
+        NotifyPropertyChanged(nameof(DeleteCardToolTipText));
 
         if (_trayIcon is not null)
         {
@@ -514,18 +725,32 @@ public partial class MainWindow : Window
     {
         if (sender is FrameworkElement element && element.DataContext is ShortcutItem item)
         {
-            ShortcutList.SelectedItem = item;
             return item;
         }
+
         if (sender is System.Windows.Controls.MenuItem menuItem &&
-            menuItem.Parent is System.Windows.Controls.ContextMenu contextMenu &&
-            contextMenu.PlacementTarget is FrameworkElement placementTarget &&
-            placementTarget.DataContext is ShortcutItem contextItem)
+            menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is FrameworkElement placementTarget)
         {
-            ShortcutList.SelectedItem = contextItem;
-            return contextItem;
+            if (placementTarget.DataContext is ShortcutItem contextItem)
+            {
+                return contextItem;
+            }
+
+            if (placementTarget is ListBox listBox && listBox.SelectedItem is ShortcutItem selectedItem)
+            {
+                return selectedItem;
+            }
         }
-        return ShortcutList.SelectedItem as ShortcutItem;
+
+        return null;
+    }
+
+    private ShortcutGroup? GroupFromSender(object sender)
+    {
+        return sender is FrameworkElement element
+            ? element.DataContext as ShortcutGroup
+            : null;
     }
 
     private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
@@ -562,7 +787,7 @@ public partial class MainWindow : Window
         _allowClose = true;
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
-        SaveSettings();
+        SaveSettings(true);
         Close();
     }
 
@@ -576,29 +801,146 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] paths)
         {
-            AddShortcuts(paths);
+            AddShortcutsToGroup(GetOrCreateDropTargetGroup(), paths);
+            e.Handled = true;
         }
+    }
+
+    private void GroupCard_DragEnter(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void GroupCard_Drop(object sender, DragEventArgs e)
+    {
+        if (GroupFromSender(sender) is not ShortcutGroup group)
+        {
+            return;
+        }
+
+        SetSelectedGroup(group);
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] paths)
+        {
+            AddShortcutsToGroup(group, paths);
+        }
+
+        e.Handled = true;
+    }
+
+    private void GroupCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (GroupFromSender(sender) is ShortcutGroup group)
+        {
+            SetSelectedGroup(group);
+        }
+    }
+
+    private void AddCardButton_Click(object sender, RoutedEventArgs e)
+    {
+        AddGroup();
+    }
+
+    private void RemoveGroupButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (GroupFromSender(sender) is ShortcutGroup group)
+        {
+            RemoveGroup(group);
+        }
+    }
+
+    private void GroupName_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (GroupFromSender(sender) is ShortcutGroup group)
+        {
+            SetSelectedGroup(group);
+            SaveSettings();
+        }
+    }
+
+    private void GroupName_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (GroupFromSender(sender) is not ShortcutGroup group)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(group.Name))
+        {
+            group.Name = CreateDefaultGroupName(Math.Max(1, Groups.IndexOf(group) + 1));
+        }
+
+        SaveSettings();
+    }
+
+    private void GroupColor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        if (GroupFromSender(sender) is ShortcutGroup group)
+        {
+            SetSelectedGroup(group);
+            SaveSettings();
+        }
+    }
+
+    private void ShortcutList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        if (listBox.SelectedItem is not ShortcutItem)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        listBox.ContextMenu = CreateShortcutContextMenu();
     }
 
     private void ShortcutList_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Delete)
+        if (e.Key == Key.Delete &&
+            sender is ListBox listBox &&
+            listBox.SelectedItem is ShortcutItem item)
         {
-            RemoveSelectedShortcut();
+            RemoveShortcut(item);
+            e.Handled = true;
         }
     }
 
     private void ShortcutList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        OpenSelectedShortcut();
+        if (sender is ListBox listBox &&
+            listBox.SelectedItem is ShortcutItem item)
+        {
+            OpenPath(item.Path);
+        }
     }
 
     private void ShortcutList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
-        if (item is not null)
+        var listItem = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (listItem is null)
         {
-            item.IsSelected = true;
+            if (sender is ListBox listBox)
+            {
+                listBox.SelectedItem = null;
+            }
+
+            return;
+        }
+
+        listItem.IsSelected = true;
+        if (listItem.DataContext is ShortcutItem shortcut &&
+            FindGroupForShortcut(shortcut) is ShortcutGroup group)
+        {
+            SetSelectedGroup(group);
         }
     }
 
@@ -656,7 +998,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
-        SaveSettings();
+        SaveSettings(true);
         if (_allowClose)
         {
             return;
@@ -666,7 +1008,7 @@ public partial class MainWindow : Window
         Hide();
     }
 
-    private void WindowModeBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void WindowModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var mode = WindowModeBox.SelectedItem?.ToString();
         if (!string.IsNullOrWhiteSpace(mode))
@@ -677,7 +1019,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ThemeBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var themeName = ThemeBox.SelectedItem?.ToString();
         if (!string.IsNullOrWhiteSpace(themeName))
@@ -688,7 +1030,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void LanguageBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void LanguageBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isLoading)
         {
@@ -700,7 +1042,7 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void TerminalShellBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void TerminalShellBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isLoading)
         {
@@ -905,8 +1247,7 @@ public partial class MainWindow : Window
     {
         if (ItemFromSender(sender) is ShortcutItem item)
         {
-            Shortcuts.Remove(item);
-            SaveSettings();
+            RemoveShortcut(item);
         }
     }
 
@@ -977,6 +1318,11 @@ public partial class MainWindow : Window
         }
 
         return null;
+    }
+
+    private void NotifyPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     [DllImport("user32.dll")]

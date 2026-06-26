@@ -23,6 +23,7 @@ public sealed class AppSettings
     public double Width { get; set; } = 360;
     public double Height { get; set; } = 260;
     public List<ShortcutItem> Shortcuts { get; set; } = new();
+    public List<ShortcutGroup> Groups { get; set; } = new();
 
     public static string DirectoryPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ProjectShortcutDock");

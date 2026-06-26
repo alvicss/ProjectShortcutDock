@@ -5,8 +5,8 @@
         Title="Project Shortcuts"
         Width="360"
         Height="260"
-        MinWidth="280"
-        MinHeight="150"
+        MinWidth="300"
+        MinHeight="180"
         SizeToContent="Manual"
         ResizeMode="CanResizeWithGrip"
         WindowStyle="None"
@@ -34,7 +34,60 @@
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="ShortcutListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <DataTemplate x:Key="ShortcutItemTemplate" DataType="{x:Type local:ShortcutItem}">
+            <Border Height="38"
+                    Padding="8,4"
+                    CornerRadius="6"
+                    Background="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=Background}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Image Width="20"
+                           Height="20"
+                           Source="{Binding IconSource}"
+                           Stretch="Uniform" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   FontSize="13"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Path}"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                   FontSize="10"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
     </Window.Resources>
+
     <Border x:Name="ShellBorder"
             Margin="8"
             Padding="10"
@@ -71,24 +124,24 @@
                                FontSize="11" />
                 </StackPanel>
                 <Button Grid.Column="1"
+                        x:Name="SettingsButton"
                         Style="{StaticResource IconButton}"
                         Content="&#xE713;"
-                        x:Name="SettingsButton"
                         ToolTip="Settings"
                         Click="ToggleSettings_Click" />
                 <Button Grid.Column="2"
+                        x:Name="AboutButton"
                         Style="{StaticResource IconButton}"
                         Content="?"
-                        x:Name="AboutButton"
                         FontFamily="Segoe UI"
                         FontSize="14"
                         FontWeight="SemiBold"
                         ToolTip="About"
                         Click="About_Click" />
                 <Button Grid.Column="3"
+                        x:Name="HideButton"
                         Style="{StaticResource IconButton}"
                         Content="&#xE711;"
-                        x:Name="HideButton"
                         ToolTip="Hide to tray"
                         Click="Hide_Click" />
             </Grid>
@@ -172,66 +225,147 @@
                 </Grid>
             </Border>
 
-            <ListBox x:Name="ShortcutList"
-                     Grid.Row="2"
-                     Margin="0,6,0,6"
-                     ItemsSource="{Binding Shortcuts}"
-                     AllowDrop="True"
-                     BorderThickness="0"
-                     Background="Transparent"
-                     VerticalAlignment="Stretch"
-                     KeyDown="ShortcutList_KeyDown"
-                     MouseDoubleClick="ShortcutList_MouseDoubleClick"
-                     PreviewMouseRightButtonDown="ShortcutList_PreviewMouseRightButtonDown"
-                     SelectionMode="Single"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem">
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                        <Setter Property="Padding" Value="0" />
-                        <Setter Property="Margin" Value="0,0,0,4" />
-                        <Setter Property="Background" Value="Transparent" />
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </ListBox.ItemContainerStyle>
-                <ListBox.ItemTemplate>
-                    <DataTemplate DataType="{x:Type local:ShortcutItem}">
-                        <Border Height="38"
-                                Padding="8,4"
-                                CornerRadius="6"
-                                Background="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=Background}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="28" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Image Width="20"
-                                       Height="20"
-                                       Source="{Binding IconSource}"
-                                       Stretch="Uniform" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}"
-                                               Foreground="{DynamicResource TextBrush}"
-                                               FontSize="13"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding Path}"
-                                               Foreground="{DynamicResource SubtleTextBrush}"
-                                               FontSize="10"
-                                               TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <Grid Grid.Row="2"
+                  Margin="0,6,0,6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0"
+                      Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="CardsHintText"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource SubtleTextBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap" />
+                    <Button x:Name="AddCardButton"
+                            Grid.Column="1"
+                            Margin="10,0,0,0"
+                            Style="{StaticResource PrimaryButton}"
+                            Click="AddCardButton_Click" />
+                </Grid>
+
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Groups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:ShortcutGroup}">
+                                <Border Margin="0,0,0,8"
+                                        Padding="10"
+                                        CornerRadius="8"
+                                        BorderBrush="{Binding CardBorderBrush}"
+                                        Background="{Binding CardBackgroundBrush}"
+                                        MouseLeftButtonDown="GroupCard_MouseLeftButtonDown"
+                                        AllowDrop="True"
+                                        DragEnter="GroupCard_DragEnter"
+                                        Drop="GroupCard_Drop">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderThickness" Value="1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter Property="BorderThickness" Value="2" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0"
+                                                    Orientation="Horizontal"
+                                                    VerticalAlignment="Center">
+                                            <Border Width="10"
+                                                    Height="10"
+                                                    Margin="0,0,8,0"
+                                                    CornerRadius="5"
+                                                    Background="{Binding CardAccentBrush}" />
+                                            <TextBox MinWidth="140"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Foreground="{DynamicResource TextBrush}"
+                                                     FontSize="14"
+                                                     FontWeight="SemiBold"
+                                                     Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                     TextChanged="GroupName_TextChanged"
+                                                     LostFocus="GroupName_LostFocus" />
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1"
+                                                Style="{StaticResource IconButton}"
+                                                Content="&#xE74D;"
+                                                ToolTip="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DeleteCardToolTipText}"
+                                                Click="RemoveGroupButton_Click" />
+
+                                        <StackPanel Grid.Row="1"
+                                                    Grid.ColumnSpan="2"
+                                                    Margin="0,8,0,0"
+                                                    Orientation="Horizontal"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource SubtleTextBrush}"
+                                                       Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=CardColorLabelText}" />
+                                            <ComboBox Width="150"
+                                                      Margin="8,0,0,0"
+                                                      ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=GroupColorOptions}"
+                                                      SelectedValue="{Binding ColorKey, UpdateSourceTrigger=PropertyChanged}"
+                                                      SelectedValuePath="Key"
+                                                      SelectionChanged="GroupColor_SelectionChanged">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type local:CardColorOption}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Width="12"
+                                                                    Height="12"
+                                                                    Margin="0,0,8,0"
+                                                                    CornerRadius="6"
+                                                                    Background="{Binding AccentBrush}" />
+                                                            <TextBlock VerticalAlignment="Center"
+                                                                       Text="{Binding DisplayName}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <ListBox Grid.Row="2"
+                                                 Grid.ColumnSpan="2"
+                                                 MinHeight="56"
+                                                 Margin="0,10,0,0"
+                                                 AllowDrop="True"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 ItemContainerStyle="{StaticResource ShortcutListItemStyle}"
+                                                 ItemTemplate="{StaticResource ShortcutItemTemplate}"
+                                                 ItemsSource="{Binding Shortcuts}"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                 ContextMenuOpening="ShortcutList_ContextMenuOpening"
+                                                 KeyDown="ShortcutList_KeyDown"
+                                                 MouseDoubleClick="ShortcutList_MouseDoubleClick"
+                                                 PreviewMouseRightButtonDown="ShortcutList_PreviewMouseRightButtonDown"
+                                                 DragEnter="GroupCard_DragEnter"
+                                                 Drop="GroupCard_Drop" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
         </Grid>
     </Border>
 </Window>
