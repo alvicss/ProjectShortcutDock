@@ -8,17 +8,27 @@ using System.Windows.Forms;
 
 internal static class SetupBootstrapper
 {
-    private const string AppName = "Project Shortcut Dock";
-    private const string ExeName = "ProjectShortcutDock.exe";
-    private const string UninstallExeName = "ProjectShortcutDock.Uninstall.exe";
+    private const string AppName = "Lazy Shortcut";
+    private const string ExeName = "LazyShortcut.exe";
+    private const string LegacyExeName = "ProjectShortcutDock.exe";
+    private const string UninstallExeName = "LazyShortcut.Uninstall.exe";
     private const string CurrentVersion = "2.1";
     private const string PublisherName = "alvicss";
-    private const string StartMenuFolderName = "Project Shortcut Dock";
+    private const string StartMenuFolderName = "Lazy Shortcut";
+    private const string LegacyStartMenuFolderName = "Project Shortcut Dock";
     private const string StartWithWindowsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock";
     private const string RuntimeInstallerResourceName = "dotnet-runtime-installer.exe";
     private const string RuntimeInstallerFileName = "windowsdesktop-runtime-10.0.9-win-x64.exe";
     private const string RuntimeManualInstallUrl = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-10.0.9-windows-x64-installer";
+    private static readonly string[] ObsoleteInstalledFiles =
+    {
+        "ProjectShortcutDock.exe",
+        "ProjectShortcutDock.dll",
+        "ProjectShortcutDock.deps.json",
+        "ProjectShortcutDock.runtimeconfig.json",
+        "ProjectShortcutDock.Uninstall.exe"
+    };
 
     [STAThread]
     private static int Main()
@@ -177,7 +187,7 @@ internal static class SetupBootstrapper
         {
             message += Environment.NewLine + Environment.NewLine +
                 "可能原因：舊版本仍在執行，或先前解除安裝尚未完全清理。" + Environment.NewLine +
-                "請先確認 Project Shortcut Dock 已完全結束，必要時刪除 %LOCALAPPDATA%\\ProjectShortcutDock 後再重新安裝。";
+                "請先確認 Lazy Shortcut 已完全結束，必要時刪除 %LOCALAPPDATA%\\ProjectShortcutDock 後再重新安裝。";
         }
 
         return message;
@@ -201,8 +211,8 @@ internal static class SetupBootstrapper
 
     private static void ExtractApp(string installDir)
     {
-        string tempZip = Path.Combine(Path.GetTempPath(), "ProjectShortcutDock-app.zip");
-        string stagingDir = Path.Combine(Path.GetTempPath(), "ProjectShortcutDock-staging-" + Guid.NewGuid().ToString("N"));
+        string tempZip = Path.Combine(Path.GetTempPath(), "LazyShortcut-app.zip");
+        string stagingDir = Path.Combine(Path.GetTempPath(), "LazyShortcut-staging-" + Guid.NewGuid().ToString("N"));
         ExtractEmbeddedFile("app.zip", tempZip);
 
         try
@@ -226,35 +236,8 @@ internal static class SetupBootstrapper
 
     private static void EnsureInstalledAppIsClosed(string installDir)
     {
-        string installedExePath = Path.Combine(installDir, ExeName);
-        string processName = Path.GetFileNameWithoutExtension(ExeName);
-
-        foreach (Process process in Process.GetProcessesByName(processName))
-        {
-            try
-            {
-                string processPath = TryGetProcessPath(process);
-                if (!string.Equals(processPath, installedExePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (!process.HasExited)
-                {
-                    process.CloseMainWindow();
-                    if (!process.WaitForExit(5000))
-                    {
-                        throw new InvalidOperationException(
-                            "偵測到舊版 Project Shortcut Dock 仍在執行。" + Environment.NewLine +
-                            "請先從系統匣結束程式，或在工作管理員中關閉 ProjectShortcutDock.exe 後再重新安裝。");
-                    }
-                }
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
+        EnsureInstalledProcessIsClosed(installDir, ExeName);
+        EnsureInstalledProcessIsClosed(installDir, LegacyExeName);
     }
 
     private static void PrepareInstallDirectory(string installDir)
@@ -268,6 +251,16 @@ internal static class SetupBootstrapper
         foreach (string file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
         {
             File.SetAttributes(file, FileAttributes.Normal);
+        }
+
+        foreach (string obsoleteFile in ObsoleteInstalledFiles)
+        {
+            string obsoletePath = Path.Combine(installDir, obsoleteFile);
+            if (File.Exists(obsoletePath))
+            {
+                File.SetAttributes(obsoletePath, FileAttributes.Normal);
+                File.Delete(obsoletePath);
+            }
         }
     }
 
@@ -350,6 +343,8 @@ internal static class SetupBootstrapper
 
     private static void CreateStartMenuShortcuts(string installDir)
     {
+        RemoveLegacyStartMenuFolder();
+
         string startMenuDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "Microsoft\\Windows\\Start Menu\\Programs",
@@ -366,10 +361,10 @@ internal static class SetupBootstrapper
         }
 
         dynamic shell = Activator.CreateInstance(shellType);
-        CreateShortcut(shell, Path.Combine(startMenuDir, "Project Shortcut Dock.lnk"), targetPath, installDir, targetPath + ",0");
+        CreateShortcut(shell, Path.Combine(startMenuDir, "Lazy Shortcut.lnk"), targetPath, installDir, targetPath + ",0");
         if (File.Exists(uninstallPath))
         {
-            CreateShortcut(shell, Path.Combine(startMenuDir, "Uninstall Project Shortcut Dock.lnk"), uninstallPath, installDir, targetPath + ",0");
+            CreateShortcut(shell, Path.Combine(startMenuDir, "Uninstall Lazy Shortcut.lnk"), uninstallPath, installDir, targetPath + ",0");
         }
     }
 
@@ -422,6 +417,59 @@ internal static class SetupBootstrapper
 
             key.SetValue("ProjectShortcutDock", "\"" + targetPath + "\"");
         }
+    }
+
+    private static void EnsureInstalledProcessIsClosed(string installDir, string exeName)
+    {
+        string installedExePath = Path.Combine(installDir, exeName);
+        string processName = Path.GetFileNameWithoutExtension(exeName);
+
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            try
+            {
+                string processPath = TryGetProcessPath(process);
+                if (!string.Equals(processPath, installedExePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!process.HasExited)
+                {
+                    process.CloseMainWindow();
+                    if (!process.WaitForExit(5000))
+                    {
+                        throw new InvalidOperationException(
+                            "偵測到舊版 Lazy Shortcut 仍在執行。" + Environment.NewLine +
+                            "請先從系統匣結束程式，或在工作管理員中關閉 " + exeName + " 後再重新安裝。");
+                    }
+                }
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private static void RemoveLegacyStartMenuFolder()
+    {
+        string legacyDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Microsoft\\Windows\\Start Menu\\Programs",
+            LegacyStartMenuFolderName);
+
+        if (!Directory.Exists(legacyDir))
+        {
+            return;
+        }
+
+        foreach (string file in Directory.GetFiles(legacyDir, "*", SearchOption.AllDirectories))
+        {
+            File.SetAttributes(file, FileAttributes.Normal);
+        }
+
+        Directory.Delete(legacyDir, true);
     }
 
     private sealed class RuntimeInstallException : Exception

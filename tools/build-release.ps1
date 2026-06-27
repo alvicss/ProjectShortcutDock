@@ -14,9 +14,9 @@ $artifacts = Join-Path $root "artifacts"
 $buildOut = Join-Path $root "bin\Release\net10.0-windows"
 $package = Join-Path $artifacts "package"
 $app = Join-Path $package "app"
-$uninstallExe = Join-Path $app "ProjectShortcutDock.Uninstall.exe"
-$setupExe = Join-Path $artifacts "ProjectShortcutDock-Setup-$Version.exe"
-$zipPath = Join-Path $artifacts "ProjectShortcutDock-$Version-win-x64.zip"
+$uninstallExe = Join-Path $app "LazyShortcut.Uninstall.exe"
+$setupExe = Join-Path $artifacts "LazyShortcut-Setup-$Version.exe"
+$zipPath = Join-Path $artifacts "LazyShortcut-$Version-win-x64.zip"
 $appZip = Join-Path $artifacts "app.zip"
 $runtimeVersion = "10.0.9"
 $runtimeInstallerName = "windowsdesktop-runtime-$runtimeVersion-win-x64.exe"
@@ -26,16 +26,16 @@ $runtimeInstallerPath = Join-Path $artifacts $runtimeInstallerName
 Remove-Item -LiteralPath $artifacts -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $artifacts, $app, (Join-Path $app "image") | Out-Null
 
-& $dotnet build (Join-Path $root "ProjectShortcutDock.csproj") -c Release
+& $dotnet build (Join-Path $root "LazyShortcut.csproj") -c Release
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-WebRequest -Uri $runtimeInstallerUrl -OutFile $runtimeInstallerPath
 
 $requiredFiles = @(
-    "ProjectShortcutDock.exe",
-    "ProjectShortcutDock.dll",
-    "ProjectShortcutDock.deps.json",
-    "ProjectShortcutDock.runtimeconfig.json"
+    "LazyShortcut.exe",
+    "LazyShortcut.dll",
+    "LazyShortcut.deps.json",
+    "LazyShortcut.runtimeconfig.json"
 )
 
 foreach ($file in $requiredFiles) {
@@ -43,7 +43,7 @@ foreach ($file in $requiredFiles) {
 }
 
 Copy-Item -LiteralPath `
-    (Join-Path $root "image\project-shortcut-dock.ico"), `
+    (Join-Path $root "image\lazy-shortcut.ico"), `
     (Join-Path $root "image\codex.ico"), `
     (Join-Path $root "image\claude.ico"), `
     (Join-Path $root "image\agy.ico") `
@@ -57,7 +57,7 @@ if (-not (Test-Path $csc)) {
     throw "Cannot find .NET Framework csc.exe for setup bootstrapper."
 }
 
-$setupIcon = Join-Path $root "image\project-shortcut-dock.ico"
+$setupIcon = Join-Path $root "image\lazy-shortcut.ico"
 $appZipResource = "/resource:$appZip,app.zip"
 $runtimeResource = "/resource:$runtimeInstallerPath,dotnet-runtime-installer.exe"
 
@@ -73,25 +73,41 @@ $installScript = @'
 $ErrorActionPreference = "Stop"
 
 $installDir = Join-Path $env:LOCALAPPDATA "ProjectShortcutDock"
-$startMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Project Shortcut Dock"
+$startMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Lazy Shortcut"
+$legacyStartMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Project Shortcut Dock"
 $sourceDir = $PSScriptRoot
 $appSource = Join-Path $sourceDir "app"
 
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+@(
+    "ProjectShortcutDock.exe",
+    "ProjectShortcutDock.dll",
+    "ProjectShortcutDock.deps.json",
+    "ProjectShortcutDock.runtimeconfig.json",
+    "ProjectShortcutDock.Uninstall.exe"
+) | ForEach-Object {
+    $obsoletePath = Join-Path $installDir $_
+    if (Test-Path $obsoletePath) {
+        Remove-Item -LiteralPath $obsoletePath -Force
+    }
+}
 Copy-Item -Path (Join-Path $appSource "*") -Destination $installDir -Recurse -Force
 
+if (Test-Path $legacyStartMenuDir) {
+    Remove-Item -LiteralPath $legacyStartMenuDir -Recurse -Force
+}
 New-Item -ItemType Directory -Path $startMenuDir -Force | Out-Null
-$targetPath = Join-Path $installDir "ProjectShortcutDock.exe"
-$uninstallPath = Join-Path $installDir "ProjectShortcutDock.Uninstall.exe"
+$targetPath = Join-Path $installDir "LazyShortcut.exe"
+$uninstallPath = Join-Path $installDir "LazyShortcut.Uninstall.exe"
 $shell = New-Object -ComObject WScript.Shell
-$shortcut = $shell.CreateShortcut((Join-Path $startMenuDir "Project Shortcut Dock.lnk"))
+$shortcut = $shell.CreateShortcut((Join-Path $startMenuDir "Lazy Shortcut.lnk"))
 $shortcut.TargetPath = $targetPath
 $shortcut.WorkingDirectory = $installDir
 $shortcut.IconLocation = "$targetPath,0"
 $shortcut.Save()
 
 if (Test-Path $uninstallPath) {
-    $uninstallShortcut = $shell.CreateShortcut((Join-Path $startMenuDir "Uninstall Project Shortcut Dock.lnk"))
+    $uninstallShortcut = $shell.CreateShortcut((Join-Path $startMenuDir "Uninstall Lazy Shortcut.lnk"))
     $uninstallShortcut.TargetPath = $uninstallPath
     $uninstallShortcut.WorkingDirectory = $installDir
     $uninstallShortcut.IconLocation = "$targetPath,0"
@@ -100,7 +116,7 @@ if (Test-Path $uninstallPath) {
 
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock"
 New-Item -Path $uninstallKey -Force | Out-Null
-Set-ItemProperty -Path $uninstallKey -Name DisplayName -Value "Project Shortcut Dock"
+Set-ItemProperty -Path $uninstallKey -Name DisplayName -Value "Lazy Shortcut"
 Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value "{VERSION}"
 Set-ItemProperty -Path $uninstallKey -Name Publisher -Value "alvicss"
 Set-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $installDir

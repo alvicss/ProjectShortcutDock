@@ -221,7 +221,7 @@ public sealed class DockManager : IDisposable
 
     private void CreateTrayIcon()
     {
-        var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "image", "project-shortcut-dock.ico");
+        var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "image", "lazy-shortcut.ico");
         _trayIcon = new Forms.NotifyIcon
         {
             Icon = System.IO.File.Exists(iconPath)

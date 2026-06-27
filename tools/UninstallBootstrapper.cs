@@ -7,9 +7,11 @@ using System.Windows.Forms;
 
 internal static class UninstallBootstrapper
 {
-    private const string AppName = "Project Shortcut Dock";
-    private const string ExeName = "ProjectShortcutDock.exe";
-    private const string StartMenuFolderName = "Project Shortcut Dock";
+    private const string AppName = "Lazy Shortcut";
+    private const string ExeName = "LazyShortcut.exe";
+    private const string LegacyExeName = "ProjectShortcutDock.exe";
+    private const string StartMenuFolderName = "Lazy Shortcut";
+    private const string LegacyStartMenuFolderName = "Project Shortcut Dock";
     private const string RunValueName = "ProjectShortcutDock";
     private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ProjectShortcutDock";
 
@@ -24,7 +26,7 @@ internal static class UninstallBootstrapper
             string settingsDir = GetSettingsDir();
 
             if (MessageBox.Show(
-                "確定要移除 Project Shortcut Dock 嗎？",
+                "確定要移除 Lazy Shortcut 嗎？",
                 AppName,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question) != DialogResult.Yes)
@@ -52,7 +54,7 @@ internal static class UninstallBootstrapper
             StartCleanupProcess(Process.GetCurrentProcess().Id, installDir, removeSettings ? settingsDir : null);
 
             MessageBox.Show(
-                "已啟動 Project Shortcut Dock 的移除程序。" + Environment.NewLine +
+                "已啟動 Lazy Shortcut 的移除程序。" + Environment.NewLine +
                 "關閉此視窗後，系統會繼續清理安裝資料夾。" + Environment.NewLine +
                 "只有在安裝資料夾刪除完成後，這個程式才會從已安裝的應用程式清單中移除。",
                 AppName,
@@ -97,35 +99,8 @@ internal static class UninstallBootstrapper
 
     private static void EnsureAppHasExited(string installDir)
     {
-        string installedExePath = Path.Combine(installDir, ExeName);
-        string processName = Path.GetFileNameWithoutExtension(ExeName);
-
-        foreach (Process process in Process.GetProcessesByName(processName))
-        {
-            try
-            {
-                string processPath = TryGetProcessPath(process);
-                if (!string.Equals(processPath, installedExePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (!process.HasExited)
-                {
-                    process.CloseMainWindow();
-                    if (!process.WaitForExit(5000))
-                    {
-                        throw new InvalidOperationException(
-                            "偵測到 Project Shortcut Dock 仍在執行。" + Environment.NewLine +
-                            "請先從系統匣結束程式，或在工作管理員中關閉 ProjectShortcutDock.exe 後再試一次。");
-                    }
-                }
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
+        EnsureInstalledProcessIsClosed(installDir, ExeName);
+        EnsureInstalledProcessIsClosed(installDir, LegacyExeName);
     }
 
     private static void RemoveStartWithWindows()
@@ -148,18 +123,8 @@ internal static class UninstallBootstrapper
 
     private static void RemoveStartMenuShortcuts()
     {
-        string startMenuDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Microsoft\\Windows\\Start Menu\\Programs",
-            StartMenuFolderName);
-
-        if (!Directory.Exists(startMenuDir))
-        {
-            return;
-        }
-
-        ClearDirectoryAttributes(startMenuDir);
-        Directory.Delete(startMenuDir, true);
+        RemoveStartMenuFolder(StartMenuFolderName);
+        RemoveStartMenuFolder(LegacyStartMenuFolderName);
     }
 
     private static void ClearDirectoryAttributes(string rootDir)
@@ -174,7 +139,7 @@ internal static class UninstallBootstrapper
     {
         string scriptPath = Path.Combine(
             Path.GetTempPath(),
-            "ProjectShortcutDock-uninstall-" + Guid.NewGuid().ToString("N") + ".ps1");
+            "LazyShortcut-uninstall-" + Guid.NewGuid().ToString("N") + ".ps1");
         File.WriteAllText(scriptPath, BuildCleanupScript(uninstallProcessId, installDir, settingsDir, scriptPath), new UTF8Encoding(false));
 
         Process.Start(new ProcessStartInfo
@@ -238,6 +203,55 @@ internal static class UninstallBootstrapper
             "}" + Environment.NewLine +
             "Start-Sleep -Milliseconds 500" + Environment.NewLine +
             "Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue" + Environment.NewLine;
+    }
+
+    private static void EnsureInstalledProcessIsClosed(string installDir, string exeName)
+    {
+        string installedExePath = Path.Combine(installDir, exeName);
+        string processName = Path.GetFileNameWithoutExtension(exeName);
+
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            try
+            {
+                string processPath = TryGetProcessPath(process);
+                if (!string.Equals(processPath, installedExePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!process.HasExited)
+                {
+                    process.CloseMainWindow();
+                    if (!process.WaitForExit(5000))
+                    {
+                        throw new InvalidOperationException(
+                            "偵測到 Lazy Shortcut 仍在執行。" + Environment.NewLine +
+                            "請先從系統匣結束程式，或在工作管理員中關閉 " + exeName + " 後再試一次。");
+                    }
+                }
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private static void RemoveStartMenuFolder(string folderName)
+    {
+        string startMenuDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Microsoft\\Windows\\Start Menu\\Programs",
+            folderName);
+
+        if (!Directory.Exists(startMenuDir))
+        {
+            return;
+        }
+
+        ClearDirectoryAttributes(startMenuDir);
+        Directory.Delete(startMenuDir, true);
     }
 
     private static string EscapePowerShellSingleQuotedString(string value)

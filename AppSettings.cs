@@ -8,6 +8,8 @@ namespace ProjectShortcutDock;
 
 public sealed class AppSettings
 {
+    // Keep the existing AppData folder so 2.1 upgrades preserve user settings.
+    private const string SettingsFolderName = "ProjectShortcutDock";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
@@ -26,7 +28,7 @@ public sealed class AppSettings
     public List<ShortcutGroup> Groups { get; set; } = new();
 
     public static string DirectoryPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ProjectShortcutDock");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), SettingsFolderName);
 
     public static string FilePath => Path.Combine(DirectoryPath, "settings.json");
 

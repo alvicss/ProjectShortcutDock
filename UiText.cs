@@ -12,7 +12,7 @@ public static class UiText
     {
         ["zh-TW"] = new Dictionary<string, string>
         {
-            ["AppTitle"] = "專案捷徑",
+            ["AppTitle"] = "Lazy Shortcut",
             ["EmptyHint"] = "將檔案或資料夾拖放到這裡",
             ["AddWindow"] = "新增視窗",
             ["RemoveWindow"] = "刪除視窗",
@@ -58,7 +58,7 @@ public static class UiText
         },
         ["en"] = new Dictionary<string, string>
         {
-            ["AppTitle"] = "Project Shortcuts",
+            ["AppTitle"] = "Lazy Shortcut",
             ["EmptyHint"] = "Drop files or folders here",
             ["AddWindow"] = "Add window",
             ["RemoveWindow"] = "Remove window",
@@ -104,7 +104,7 @@ public static class UiText
         },
         ["ja"] = new Dictionary<string, string>
         {
-            ["AppTitle"] = "プロジェクトショートカット",
+            ["AppTitle"] = "Lazy Shortcut",
             ["EmptyHint"] = "ファイルまたはフォルダーをここにドロップ",
             ["AddWindow"] = "ウィンドウ追加",
             ["RemoveWindow"] = "ウィンドウ削除",

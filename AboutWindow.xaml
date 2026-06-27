@@ -25,7 +25,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0"
-                       Text="Project Shortcut Dock"
+                       Text="Lazy Shortcut"
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextBrush}" />

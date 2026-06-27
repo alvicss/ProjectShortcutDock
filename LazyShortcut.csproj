@@ -6,7 +6,10 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationIcon>image\project-shortcut-dock.ico</ApplicationIcon>
+    <AssemblyName>LazyShortcut</AssemblyName>
+    <Product>Lazy Shortcut</Product>
+    <Title>Lazy Shortcut</Title>
+    <ApplicationIcon>image\lazy-shortcut.ico</ApplicationIcon>
     <DefaultItemExcludes>$(DefaultItemExcludes);artifacts\**;bin\**;obj\**</DefaultItemExcludes>
     <Version>2.1</Version>
     <AssemblyVersion>2.1.0.0</AssemblyVersion>
